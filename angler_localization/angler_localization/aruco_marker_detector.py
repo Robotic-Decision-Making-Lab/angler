@@ -21,7 +21,6 @@
 from typing import Any
 
 import cv2
-import gi
 import numpy as np
 import rclpy
 from geometry_msgs.msg import PoseStamped
@@ -30,6 +29,26 @@ from rclpy.node import Node
 
 
 class ArucoMarkerDetector(Node):
+    ARUCO_MARKER_TYPES = {
+        "4X4_50": cv2.aruco.DICT_4X4_50,
+        "4X4_100": cv2.aruco.DICT_4X4_100,
+        "4X4_250": cv2.aruco.DICT_4X4_250,
+        "4X4_1000": cv2.aruco.DICT_4X4_1000,
+        "5X5_50": cv2.aruco.DICT_5X5_50,
+        "5X5_100": cv2.aruco.DICT_5X5_100,
+        "5X5_250": cv2.aruco.DICT_5X5_250,
+        "5X5_1000": cv2.aruco.DICT_5X5_1000,
+        "6X6_50": cv2.aruco.DICT_6X6_50,
+        "6X6_100": cv2.aruco.DICT_6X6_100,
+        "6X6_250": cv2.aruco.DICT_6X6_250,
+        "6X6_1000": cv2.aruco.DICT_6X6_1000,
+        "7X7_50": cv2.aruco.DICT_7X7_50,
+        "7X7_100": cv2.aruco.DICT_7X7_100,
+        "7X7_250": cv2.aruco.DICT_7X7_250,
+        "7X7_1000": cv2.aruco.DICT_7X7_1000,
+        "ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
+    }
+
     def __init__(self) -> None:
         super().__init__("aruco_marker_detector")
 
@@ -43,13 +62,15 @@ class ArucoMarkerDetector(Node):
             ],
         )
 
-        self.get_parameter("port").get_parameter_value().integer_value
-
         self.visual_odom_pub = self.create_publisher(
             PoseStamped, "/mavros/vision_pose/pose", 1
         )
 
-    def init_stream(self, port: int) -> None:
+        self.video_pipe, self.video_sink = self.init_stream(
+            self.get_parameter("port").get_parameter_value().integer_value
+        )
+
+    def init_stream(self, port: int, marker_type: str) -> tuple[Any, Any]:
         Gst.init(None)
 
         video_source = f"udpsrc port={port}"
@@ -70,11 +91,48 @@ class ArucoMarkerDetector(Node):
 
         video_sink = video_pipe.get_by_name("appsink0")
 
-        # TODO(evan-palmer): Add callback here
         video_sink.connect("new-sample", self.extract_and_publish_pose_cb)
 
+        return video_pipe, video_sink
+
+    @staticmethod
+    def gst_to_opencv(sample: Any) -> np.ndarray:
+        buf = sample.get_buffer()
+        caps = sample.get_caps()
+
+        return np.ndarray(
+            (
+                caps.get_structure(0).get_value("height"),
+                caps.get_structure(0).get_value("width"),
+                3,
+            ),
+            buffer=buf.extract_dup(0, buf.get_size()),
+            dtype=np.uint8,
+        )
+
     def extract_and_publish_pose_cb(self, sink: Any) -> Any:
-        frame = sink.emit("pull-sample")
+        frame = self.gst_to_opencv(sink.emit("pull-sample"))
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        pose_msg = PoseStamped()
+
+        pose_msg.header.stamp = self.get_clock().now()
+        pose_msg.header.frame_id = "map"
+
+        (
+            pose_msg.pose.position.x,
+            pose_msg.pose.position.y,
+            pose_msg.pose.position.z,
+        ) = [0, 0, 0]
+
+        (
+            pose_msg.pose.orientation.x,
+            pose_msg.pose.orientation.y,
+            pose_msg.pose.orientation.z,
+            pose_msg.pose.orientation.w,
+        ) = [0, 0, 0, 0]
+
+        self.visual_odom_pub.publish(pose_msg)
 
         return Gst.FlowReturn.OK
 
