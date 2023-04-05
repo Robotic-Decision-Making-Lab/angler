@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+.mypy_cache/
+build
+install
+log
+.vscode
