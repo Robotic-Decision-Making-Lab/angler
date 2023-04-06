@@ -29,25 +29,34 @@ from rclpy.node import Node
 
 
 class ArucoMarkerDetector(Node):
-    ARUCO_MARKER_TYPES = {
-        "4X4_50": cv2.aruco.DICT_4X4_50,
-        "4X4_100": cv2.aruco.DICT_4X4_100,
-        "4X4_250": cv2.aruco.DICT_4X4_250,
-        "4X4_1000": cv2.aruco.DICT_4X4_1000,
-        "5X5_50": cv2.aruco.DICT_5X5_50,
-        "5X5_100": cv2.aruco.DICT_5X5_100,
-        "5X5_250": cv2.aruco.DICT_5X5_250,
-        "5X5_1000": cv2.aruco.DICT_5X5_1000,
-        "6X6_50": cv2.aruco.DICT_6X6_50,
-        "6X6_100": cv2.aruco.DICT_6X6_100,
-        "6X6_250": cv2.aruco.DICT_6X6_250,
-        "6X6_1000": cv2.aruco.DICT_6X6_1000,
-        "7X7_50": cv2.aruco.DICT_7X7_50,
-        "7X7_100": cv2.aruco.DICT_7X7_100,
-        "7X7_250": cv2.aruco.DICT_7X7_250,
-        "7X7_1000": cv2.aruco.DICT_7X7_1000,
-        "ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
-    }
+    """
+    ArUco marker pose estimator.
+
+    The ArUco marker detector is responsible for detecting any ArUco markers in the
+    BlueROV2 camera stream and, if any markers are detected, estimating the pose of the
+    BlueROV2 relative to the tag. Once the pose has been estimated, the resulting pose
+    is sent to the ArduSub EKF for fusing.
+    """
+
+    ARUCO_MARKER_TYPES = [
+        cv2.aruco.DICT_4X4_50,
+        cv2.aruco.DICT_4X4_100,
+        cv2.aruco.DICT_4X4_250,
+        cv2.aruco.DICT_4X4_1000,
+        cv2.aruco.DICT_5X5_50,
+        cv2.aruco.DICT_5X5_100,
+        cv2.aruco.DICT_5X5_250,
+        cv2.aruco.DICT_5X5_1000,
+        cv2.aruco.DICT_6X6_50,
+        cv2.aruco.DICT_6X6_100,
+        cv2.aruco.DICT_6X6_250,
+        cv2.aruco.DICT_6X6_1000,
+        cv2.aruco.DICT_7X7_50,
+        cv2.aruco.DICT_7X7_100,
+        cv2.aruco.DICT_7X7_250,
+        cv2.aruco.DICT_7X7_1000,
+        cv2.aruco.DICT_ARUCO_ORIGINAL,
+    ]
 
     def __init__(self) -> None:
         super().__init__("aruco_marker_detector")
@@ -56,21 +65,44 @@ class ArucoMarkerDetector(Node):
             "",
             [
                 ("port", 5600),
-                ("camera_matrix", np.zeros((3, 3))),
-                ("projection_matrix", np.zeros((3, 4))),
+                ("camera_matrix", np.zeros((1, 9))),  # Reshaped to 3x3
+                ("projection_matrix", np.zeros((1, 12))),  # Reshaped to 3x4
                 ("distortion_coefficients", np.zeros((1, 5))),
             ],
         )
+
+        # Get the camera intrinsics
+        self.camera_matrix = np.array(
+            self.get_parameter("camera_matrix")
+            .get_parameter_value()
+            .double_array_value,
+            np.float32,
+        ).reshape(3, 3)
+
+        self.projection_matrix = np.array(
+            self.get_parameter("projection_matrix")
+            .get_parameter_value()
+            .double_array_value,
+            np.float32,
+        ).reshape(3, 4)
+
+        self.distortion_coefficients = np.array(
+            self.get_parameter("distortion_coefficients")
+            .get_parameter_value()
+            .double_array_value,
+            np.float32,
+        ).reshape(1, 5)
 
         self.visual_odom_pub = self.create_publisher(
             PoseStamped, "/mavros/vision_pose/pose", 1
         )
 
+        # Start the Gstreamer stream
         self.video_pipe, self.video_sink = self.init_stream(
             self.get_parameter("port").get_parameter_value().integer_value
         )
 
-    def init_stream(self, port: int, marker_type: str) -> tuple[Any, Any]:
+    def init_stream(self, port: int) -> tuple[Any, Any]:
         Gst.init(None)
 
         video_source = f"udpsrc port={port}"
@@ -96,9 +128,9 @@ class ArucoMarkerDetector(Node):
         return video_pipe, video_sink
 
     @staticmethod
-    def gst_to_opencv(sample: Any) -> np.ndarray:
-        buf = sample.get_buffer()
-        caps = sample.get_caps()
+    def gst_to_opencv(frame: Any) -> np.ndarray:
+        buf = frame.get_buffer()
+        caps = frame.get_caps()
 
         return np.ndarray(
             (
@@ -110,9 +142,63 @@ class ArucoMarkerDetector(Node):
             dtype=np.uint8,
         )
 
+    def detect_tag(self, frame: np.ndarray) -> tuple[Any, Any] | None:
+        # Check each tag type, breaking when we find one that works
+        for tag_type in self.ARUCO_MARKER_TYPES:
+            aruco_dict = cv2.aruco.Dictionary_get(tag_type)
+            aruco_params = cv2.aruco.DetectorParameters_create()
+
+            try:
+                # Return the corners and ids if we find the correct tag type
+                corners, ids, _ = cv2.aruco.detectMarkers(
+                    frame, aruco_dict, parameters=aruco_params
+                )
+
+                if len(ids) > 0:
+                    return corners, ids
+
+            except Exception:
+                continue
+
+        # Nothing was found
+        return None
+
     def extract_and_publish_pose_cb(self, sink: Any) -> Any:
         frame = self.gst_to_opencv(sink.emit("pull-sample"))
+
+        # Convert to greyscale image then try to detect the tag(s)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        detection = self.detect_tag(gray)
+
+        if detection is None:
+            self.get_logger().debug(
+                "An ArUco marker could not be detected in the current frame"
+            )
+            return Gst.FlowReturn.OK
+
+        corners, ids = detection
+
+        # If there are multiple markers, get the marker with the "longest" side, where
+        # "longest" should be interpretted as the relative size in the image
+        side_lengths = [
+            abs(corner[0][0][0] - corner[0][2][0])
+            + abs(corner[0][0][1] - corner[0][2][1])
+            for corner in corners
+        ]
+
+        min_side_idx = side_lengths.index(max(side_lengths))
+
+        # Get the estimated pose
+        rot_vec, trans_vec, _ = cv2.aruco.estimatePoseSingleMarkers(
+            corners[min_side_idx],
+            ids[min_side_idx],
+            self.camera_matrix,
+            self.distortion_coefficients,
+        )
+
+        # TODO(evan-palmer): Get the transform from the marker ID to the map frame
+        # TODO(evan-palmer): then apply the transform. Calculate the estimated velocity,
+        # TODO(evan-palmer): and publish to the ArduSub EKF
 
         pose_msg = PoseStamped()
 
