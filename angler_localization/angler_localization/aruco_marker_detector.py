@@ -23,7 +23,8 @@ from typing import Any
 import cv2
 import numpy as np
 import rclpy
-from geometry_msgs.msg import PoseStamped
+import tf_transforms as tf
+from geometry_msgs.msg import Pose, PoseStamped
 from gi.repository import Gst
 from rclpy.node import Node
 
@@ -163,18 +164,13 @@ class ArucoMarkerDetector(Node):
         # Nothing was found
         return None
 
-    def extract_and_publish_pose_cb(self, sink: Any) -> Any:
-        frame = self.gst_to_opencv(sink.emit("pull-sample"))
-
+    def get_marker_pose(self, frame: np.ndarray) -> tuple[Pose, int] | None:
         # Convert to greyscale image then try to detect the tag(s)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         detection = self.detect_tag(gray)
 
         if detection is None:
-            self.get_logger().debug(
-                "An ArUco marker could not be detected in the current frame"
-            )
-            return Gst.FlowReturn.OK
+            return None
 
         corners, ids = detection
 
@@ -196,8 +192,46 @@ class ArucoMarkerDetector(Node):
             self.distortion_coefficients,
         )
 
+        # Convert to a pose msg
+        pose = Pose()
+
+        (
+            pose.position.x,
+            pose.position.y,
+            pose.position.z,
+        ) = trans_vec.squeeze()
+
+        # Convert the rotation vector to a quaternion
+        tf_mat = np.identity(4)
+        tf_mat[:3, :3], _ = cv2.Rodrigues(rot_vec)
+
+        (
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w,
+        ) = tf.quaternion_from_matrix(tf_mat)
+
+        return pose, ids[min_side_idx]
+
+    def extract_and_publish_pose_cb(self, sink: Any) -> Any:
+        frame = self.gst_to_opencv(sink.emit("pull-sample"))
+
+        # Get the pose of the camera in the `marker` frame
+        marker_pose = self.get_marker_pose(frame)
+
+        # If there was no marker in the image, exit early
+        if marker_pose is None:
+            self.get_logger().debug(
+                "An ArUco marker could not be detected in the current frame"
+            )
+            return Gst.FlowReturn.OK
+
+        # Transform the pose from the `marker` frame to the `map` frame
+        pose, marker_id = marker_pose
+
         # TODO(evan-palmer): Get the transform from the marker ID to the map frame
-        # TODO(evan-palmer): then apply the transform. Calculate the estimated velocity,
+        # TODO(evan-palmer): then apply the transform. Calculate the estimated velocity
         # TODO(evan-palmer): and publish to the ArduSub EKF
 
         pose_msg = PoseStamped()
