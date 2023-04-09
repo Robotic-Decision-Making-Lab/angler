@@ -23,10 +23,13 @@ from typing import Any
 import cv2
 import numpy as np
 import rclpy
-import tf_transforms as tf
+import tf_transformations as tf
 from geometry_msgs.msg import Pose, PoseStamped
 from gi.repository import Gst
 from rclpy.node import Node
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 
 class ArucoMarkerDetector(Node):
@@ -97,6 +100,9 @@ class ArucoMarkerDetector(Node):
         self.visual_odom_pub = self.create_publisher(
             PoseStamped, "/mavros/vision_pose/pose", 1
         )
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # Start the Gstreamer stream
         self.video_pipe, self.video_sink = self.init_stream(
@@ -230,8 +236,17 @@ class ArucoMarkerDetector(Node):
         # Transform the pose from the `marker` frame to the `map` frame
         pose, marker_id = marker_pose
 
-        # TODO(evan-palmer): Get the transform from the marker ID to the map frame
-        # TODO(evan-palmer): then apply the transform. Calculate the estimated velocity
+        try:
+            t = self.tf_buffer.lookup_transform(
+                "map", f"marker{marker_id}", rclpy.time.Time()
+            )
+        except TransformException as e:
+            self.get_logger().warning(
+                f"Could not transform from frame marker{marker_id} to map: {e}"
+            )
+            return Gst.FlowReturn.OK
+
+        # TODO(evan-palmer): Apply the transform then calculate the estimated velocity
         # TODO(evan-palmer): and publish to the ArduSub EKF
 
         pose_msg = PoseStamped()
