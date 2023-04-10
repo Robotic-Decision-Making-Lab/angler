@@ -36,3 +36,4 @@ build
 install
 log
 .vscode
+__pycache__
