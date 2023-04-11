@@ -34,8 +34,7 @@ from tf2_ros.transform_listener import TransformListener
 
 
 class ArucoMarkerDetector(Node):
-    """
-    ArUco marker pose estimator.
+    """ArUco marker pose estimator.
 
     The ArUco marker detector is responsible for detecting any ArUco markers in the
     BlueROV2 camera stream and, if any markers are detected, estimating the pose of the
@@ -112,8 +111,7 @@ class ArucoMarkerDetector(Node):
         )
 
     def init_stream(self, port: int) -> tuple[Any, Any]:
-        """
-        Initialize a GStreamer video stream interface.
+        """Initialize a GStreamer video stream interface.
 
         GStreamer is used to receive video frames from the BlueROV2 for processing.
 
@@ -149,8 +147,7 @@ class ArucoMarkerDetector(Node):
 
     @staticmethod
     def gst_to_opencv(frame: Any) -> np.ndarray:
-        """
-        Convert a GStreamer frame to a NumPy array.
+        """Convert a GStreamer frame to a NumPy array.
 
         Args:
             frame (Any): The GStreamer frame to convert to a NumPy array.
@@ -172,8 +169,7 @@ class ArucoMarkerDetector(Node):
         )
 
     def detect_markers(self, frame: np.ndarray) -> tuple[Any, Any] | None:
-        """
-        Detect any ArUco markers in the frame.
+        """Detect any ArUco markers in the frame.
 
         NOTE: All markers should be the same type of ArUco marker (e.g., 4x4 50) if
         multiple are expected to be in-frame.
@@ -205,9 +201,8 @@ class ArucoMarkerDetector(Node):
         # Nothing was found
         return None
 
-    def get_camera_pose(self, frame: np.ndarray) -> tuple[PoseStamped, int] | None:
-        """
-        Get the pose of the camera relative to any ArUco markers detected.
+    def get_camera_pose(self, frame: np.ndarray) -> tuple[Any, Any, int] | None:
+        """Get the pose of the camera relative to any ArUco markers detected.
 
         NOTE: If no markers are detected, nothing will be returned. If multiple markers
         are detected, then the "largest" marker will be used to determine the pose of
@@ -217,10 +212,8 @@ class ArucoMarkerDetector(Node):
             frame (np.ndarray): The camera frame containing ArUco markers.
 
         Returns:
-            tuple[PoseStamped, int] | None: The pose of the camera relative to the
-                marker (i.e., the pose of the camera in the `marker` frame) and the ID
-                of the largest marker detected. If no markers are detected, then `None`
-                is returned.
+            tuple[Any, Any, int] | None: The rotation vector, translation vector, and
+                ID of the marker detected. If no marker was detected, returns `None`.
         """
         # Convert to greyscale image then try to detect the tag(s)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -250,34 +243,10 @@ class ArucoMarkerDetector(Node):
             self.distortion_coefficients,
         )
 
-        # Convert to a PoseStamped msg
-        pose = PoseStamped()
-
-        pose.header.frame_id = f"marker_{min_marker_id}"
-        pose.header.stamp = self.get_clock().now().to_msg()
-
-        (
-            pose.position.x,
-            pose.position.y,
-            pose.position.z,
-        ) = trans_vec.squeeze()
-
-        # Convert the rotation vector to a quaternion
-        tf_mat = np.identity(4)
-        tf_mat[:3, :3], _ = cv2.Rodrigues(rot_vec)
-
-        (
-            pose.orientation.x,
-            pose.orientation.y,
-            pose.orientation.z,
-            pose.orientation.w,
-        ) = tf.quaternion_from_matrix(tf_mat)
-
-        return pose, min_marker_id
+        return rot_vec, trans_vec, min_marker_id
 
     def extract_and_publish_pose_cb(self, sink: Any) -> Any:
-        """
-        Get the pose of the camera relative to the marker and send to the ArduSub EKF.
+        """Get the camera pose relative to the marker and send to the ArduSub EKF.
 
         Args:
             sink (Any): The GStreamer video sink.
@@ -289,18 +258,40 @@ class ArucoMarkerDetector(Node):
         frame = self.gst_to_opencv(sink.emit("pull-sample"))
 
         # Get the pose of the camera in the `marker` frame
-        marker_pose = self.get_camera_pose(frame)
+        camera_pose = self.get_camera_pose(frame)
 
         # If there was no marker in the image, exit early
-        if marker_pose is None:
+        if camera_pose is None:
             self.get_logger().debug(
-                "An ArUco marker could not be detected in the current frame"
+                "An ArUco marker could not be detected in the current image"
             )
             return Gst.FlowReturn.OK
 
-        # Transform the pose from the `marker` frame to the `map` frame
-        pose, marker_id = marker_pose
+        rot_vec, trans_vec, marker_id = camera_pose
 
+        # Convert the pose into a PoseStamped message
+        pose = PoseStamped()
+
+        pose.header.frame_id = f"marker_{marker_id}"
+        pose.header.stamp = self.get_clock().now().to_msg()
+
+        (
+            pose.position.x,
+            pose.position.y,
+            pose.position.z,
+        ) = trans_vec.squeeze()
+
+        tf_mat = np.identity(4)
+        tf_mat[:3, :3], _ = cv2.Rodrigues(rot_vec)
+
+        (
+            pose.orientation.x,
+            pose.orientation.y,
+            pose.orientation.z,
+            pose.orientation.w,
+        ) = tf.quaternion_from_matrix(tf_mat)
+
+        # Transform the pose from the `marker` frame to the `map` frame
         try:
             pose = self.tf_buffer.transform(pose, "map")
         except TransformException as e:
