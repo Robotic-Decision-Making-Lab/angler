@@ -2,8 +2,9 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>angler_localization</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <version>0.0.1</version>
+  <description>Localization interface used to provide visual odometry estimates to the ArduPilot
+    EKF.</description>
   <maintainer email="evanp922@gmail.com">Evan Palmer</maintainer>
   <license>MIT</license>
 
@@ -15,6 +16,7 @@
   <depend>std_msgs</depend>
   <depend>python3-opencv</depend>
   <depend>python3-numpy</depend>
+  <depend>python3-transforms3d</depend>
   <depend>mavros_msgs</depend>
   <depend>tf2</depend>
   <exec_depend>tf_transformations</exec_depend>

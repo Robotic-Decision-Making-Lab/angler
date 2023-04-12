@@ -18,36 +18,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import os
-from glob import glob
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
-from setuptools import find_packages, setup
 
-package_name = "angler_localization"
+def generate_launch_description() -> LaunchDescription:
+    """Generate a launch description for the ArUco marker localization node.
 
-setup(
-    name=package_name,
-    version="0.0.1",
-    packages=find_packages(exclude=["test"]),
-    data_files=[
-        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
-        ("share/" + package_name, ["package.xml"]),
-        (os.path.join("share", package_name), glob("launch/*.launch.py")),
-        (os.path.join("share", package_name, "config"), glob("config/*.yml")),
-    ],
-    install_requires=["setuptools"],
-    zip_safe=True,
-    maintainer="Evan Palmer",
-    maintainer_email="evanp922@gmail.com",
-    description=(
-        "Localization interface used to provide visual odometry estimates to"
-        " the ArduPilot EKF."
-    ),
-    license="MIT",
-    tests_require=["pytest"],
-    entry_points={
-        "console_scripts": [
-            "aruco_marker_detector = angler_localization.aruco_marker_detector:main",
-        ],
-    },
-)
+    Returns:
+        LaunchDescription: The ArUco detection ROS 2 launch description.
+    """
+    config_filepath = DeclareLaunchArgument(
+        "config_filepath",
+        default_value=None,
+        description="The path to the configuration YAML file",
+    )
+
+    return LaunchDescription(
+        [
+            config_filepath,
+            Node(
+                package="angler_localization",
+                executable="aruco_marker_detector",
+                name="aruco_marker_detector",
+                output="screen",
+                parameters=[LaunchConfiguration("config_filepath")],
+            ),
+        ]
+    )

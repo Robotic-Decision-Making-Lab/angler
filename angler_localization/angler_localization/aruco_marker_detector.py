@@ -21,16 +21,19 @@
 from typing import Any
 
 import cv2
+import gi
 import numpy as np
 import rclpy
 import tf2_geometry_msgs  # noqa
 import tf_transformations as tf
 from geometry_msgs.msg import PoseStamped
-from gi.repository import Gst
 from rclpy.node import Node
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst  # noqa
 
 
 class ArucoMarkerDetector(Node):
@@ -70,9 +73,9 @@ class ArucoMarkerDetector(Node):
             "",
             [
                 ("port", 5600),
-                ("camera_matrix", np.zeros((1, 9))),  # Reshaped to 3x3
-                ("projection_matrix", np.zeros((1, 12))),  # Reshaped to 3x4
-                ("distortion_coefficients", np.zeros((1, 5))),
+                ("camera_matrix", [0.0 for _ in range(9)]),  # Reshaped to 3x3
+                ("projection_matrix", [0.0 for _ in range(12)]),  # Reshaped to 3x4
+                ("distortion_coefficients", [0.0 for _ in range(5)]),
             ],
         )
 
@@ -83,6 +86,8 @@ class ArucoMarkerDetector(Node):
             .double_array_value,
             np.float32,
         ).reshape(3, 3)
+
+        self.get_logger().info(f"woo: {self.camera_matrix}")
 
         self.projection_matrix = np.array(
             self.get_parameter("projection_matrix")
@@ -171,8 +176,8 @@ class ArucoMarkerDetector(Node):
     def detect_markers(self, frame: np.ndarray) -> tuple[Any, Any] | None:
         """Detect any ArUco markers in the frame.
 
-        NOTE: All markers should be the same type of ArUco marker (e.g., 4x4 50) if
-        multiple are expected to be in-frame.
+        NOTE: All markers in a frame should be the same type of ArUco marker
+        (e.g., 4x4 50) if multiple are expected to be in-frame.
 
         Args:
             frame (np.ndarray): The video frame containing any ArUco markers.
