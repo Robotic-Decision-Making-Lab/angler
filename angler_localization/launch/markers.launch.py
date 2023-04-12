@@ -19,45 +19,40 @@
 # THE SOFTWARE.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch_ros.actions import Node
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the ArUco marker localization node.
+    """Generate a launch description for the ArUco marker TF broadcasters.
 
     Returns:
-        LaunchDescription: The ArUco detection ROS 2 launch description.
+        LaunchDescription: The ArUco marker TF broadcaster ROS 2 launch description.
     """
-    args = [
-        DeclareLaunchArgument(
-            "config_filepath",
-            default_value=None,
-            description="The path to the configuration YAML file",
-        )
-    ]
+    marker_00_tf_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="marker_00_to_map_tf_broadcaster",
+        arguments=[
+            "--x",
+            "0.0",
+            "--y",
+            "0.0",
+            "--z",
+            "0.0",
+            "--roll",
+            "0",
+            "--pitch",
+            "0",
+            "--yaw",
+            "0",
+            "--frame-id",
+            "map",
+            "--child-frame-id",
+            "marker_00",
+        ],
+        output="screen",
+    )
 
-    nodes = [
-        Node(
-            package="angler_localization",
-            executable="aruco_marker_detector",
-            name="aruco_marker_detector",
-            output="screen",
-            parameters=[LaunchConfiguration("config_filepath")],
-        ),
-    ]
+    nodes = [marker_00_tf_node]
 
-    includes = [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [FindPackageShare("angler_localization"), "markers.launch.py"]
-                )
-            ),
-        )
-    ]
-
-    return LaunchDescription(args + nodes + includes)
+    return LaunchDescription(nodes)
