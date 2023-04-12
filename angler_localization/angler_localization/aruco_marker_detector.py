@@ -87,8 +87,6 @@ class ArucoMarkerDetector(Node):
             np.float32,
         ).reshape(3, 3)
 
-        self.get_logger().info(f"woo: {self.camera_matrix}")
-
         self.projection_matrix = np.array(
             self.get_parameter("projection_matrix")
             .get_parameter_value()
