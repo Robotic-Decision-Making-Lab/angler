@@ -1,0 +1,9 @@
+repositories:
+  alpha:
+    type: git
+    url: https://github.com/evan-palmer/alpha.git
+    version: main
+  blue:
+    type: git
+    url: https://github.com/evan-palmer/blue.git
+    version: main
