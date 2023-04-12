@@ -1,0 +1,19 @@
+# Get the reference plan for the AUVMS to execute.
+
+std_msgs/Header header
+
+# The maximum amount of time that the planner has to generate a trajectory.
+# This can be used by anytime algorithms (e.g., Anytime A*).
+float64 timeout
+
+# The target pose that the robot should navigate to.
+geometry_msgs/Pose target_pose
+
+# The current pose of the robot.
+geometry_msgs/Pose current_pose
+---
+# Return a task-plan that the robot should execute.
+geometry_msgs/PoseStamped[] trajectory
+---
+# No feedback is provided.
+
