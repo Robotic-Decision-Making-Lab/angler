@@ -28,31 +28,31 @@ def generate_launch_description() -> LaunchDescription:
     Returns:
         LaunchDescription: The ArUco marker TF broadcaster ROS 2 launch description.
     """
-    marker_00_tf_node = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="marker_00_to_map_tf_broadcaster",
-        arguments=[
-            "--x",
-            "0.0",
-            "--y",
-            "0.0",
-            "--z",
-            "0.0",
-            "--roll",
-            "0",
-            "--pitch",
-            "0",
-            "--yaw",
-            "0",
-            "--frame-id",
-            "map",
-            "--child-frame-id",
-            "marker_00",
-        ],
-        output="screen",
-    )
-
-    nodes = [marker_00_tf_node]
+    nodes = [
+        Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            name="marker_00_to_map_tf_broadcaster",
+            arguments=[
+                "--x",
+                "0.0",
+                "--y",
+                "0.0",
+                "--z",
+                "0.0",
+                "--roll",
+                "0",
+                "--pitch",
+                "0",
+                "--yaw",
+                "0",
+                "--frame-id",
+                "map",
+                "--child-frame-id",
+                "marker_00",
+            ],
+            output="screen",
+        )
+    ]
 
     return LaunchDescription(nodes)

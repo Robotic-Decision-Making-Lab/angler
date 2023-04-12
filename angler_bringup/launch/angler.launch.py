@@ -31,32 +31,33 @@ def generate_launch_description() -> LaunchDescription:
     Returns:
         LaunchDescription: The Angler ROS 2 launch description.
     """
-    # Get the configuration file
-    config_file_arg = DeclareLaunchArgument(
-        "config",
-        default_value="angler.yaml",
-        description="The configuration file to use.",
-    )
-    config_filepath = PathJoinSubstitution(
-        [
-            FindPackageShare("angler_bringup"),
+    # Declare the launch arguments
+    args = [
+        DeclareLaunchArgument(
             "config",
-            LaunchConfiguration("config"),
-        ]
-    )
+            default_value="angler.yaml",
+            description="The configuration file to use.",
+        )
+    ]
 
-    args = [config_file_arg]
+    # Declare additional launch files to run
+    includes = [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("angler_localization"), "aruco.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [
+                        FindPackageShare("angler_bringup"),
+                        "config",
+                        LaunchConfiguration("config"),
+                    ]
+                )
+            }.items(),
+        )
+    ]
 
-    # Declare the ROS nodes to launch
-    localization_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution(
-                [FindPackageShare("angler_localization"), "aruco.launch.py"]
-            )
-        ),
-        launch_arguments={"config_filepath": config_filepath}.items(),
-    )
-
-    include = [localization_launch]
-
-    return LaunchDescription(args + include)
+    return LaunchDescription(args + includes)

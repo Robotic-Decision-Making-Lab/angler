@@ -178,7 +178,7 @@ class ArucoMarkerDetector(Node):
         (e.g., 4x4 50) if multiple are expected to be in-frame.
 
         Args:
-            frame (np.ndarray): The video frame containing any ArUco markers.
+            frame (np.ndarray): The video frame containing ArUco markers.
 
         Returns:
             tuple[Any, Any] | None: A list of marker corners and IDs. If no markers were
@@ -215,8 +215,9 @@ class ArucoMarkerDetector(Node):
             frame (np.ndarray): The camera frame containing ArUco markers.
 
         Returns:
-            tuple[Any, Any, int] | None: The rotation vector, translation vector, and
-                ID of the marker detected. If no marker was detected, returns `None`.
+            tuple[Any, Any, int] | None: The rotation vector and translation vector of
+                the camera in the marker frame and the ID of the marker detected. If
+                no marker was detected, returns None.
         """
         # Convert to greyscale image then try to detect the tag(s)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -299,7 +300,7 @@ class ArucoMarkerDetector(Node):
             pose = self.tf_buffer.transform(pose, "map")
         except TransformException as e:
             self.get_logger().warning(
-                f"Could not transform from frame marker{marker_id} to map: {e}"
+                f"Could not transform from frame marker_{marker_id} to map: {e}"
             )
             return Gst.FlowReturn.OK
 
