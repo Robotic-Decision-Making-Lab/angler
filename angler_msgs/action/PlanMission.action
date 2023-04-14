@@ -16,4 +16,3 @@ geometry_msgs/Pose goal_pose
 angler_msgs/Waypoint[] mission
 ---
 # No feedback is provided.
-
