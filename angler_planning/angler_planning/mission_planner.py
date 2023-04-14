@@ -29,7 +29,7 @@ from rclpy.node import Node
 
 from angler_msgs.action import PlanMission
 from angler_msgs.msg import Waypoint
-from angler_planning.missions.loader import PrePlannedMissionLoader
+from angler_planning.missions.loader import MissionLibrary as ml
 
 
 class MissionPlanner(Node, ABC):
@@ -42,28 +42,28 @@ class MissionPlanner(Node, ABC):
 
         # Instantiate an action server to use for querying a mission
         self._planning_server = ActionServer(
-            self, PlanMission, "angler/plan/mission", self._get_task_plan_cb
+            self, PlanMission, "/angler/plan/mission", self._get_plan_cb
         )
 
     def destroy_node(self) -> bool:
         """Destroy the node.
 
         Returns:
-            bool: Whether or not the node was successfully destroyed.
+            Whether or not the node was successfully destroyed.
         """
         self._planning_server.destroy()
         return super().destroy_node()
 
-    def _get_task_plan_cb(self, planning_request: PlanMission) -> PlanMission.Result:
+    def _get_plan_cb(self, planning_request: PlanMission.Goal) -> PlanMission.Result:
         """Proxy the request to the planner and send the result to the client.
 
         Args:
-            planning_request (PlanMission): The planning request.
+            planning_request: The planning request.
 
         Returns:
-            PlanMission.Result: The planning algorithm's result.
+            The planning algorithm's result.
         """
-        result = planning_request.Result()
+        result = PlanMission.Result()
 
         # Plan the mission
         mission = self.plan(
@@ -91,15 +91,15 @@ class MissionPlanner(Node, ABC):
         """Plan a sequence of waypoints from the start pose to the goal pose.
 
         Args:
-            start_pose (PoseStamped): The pose to start planning from.
-            goal_pose (PoseStamped): The desired pose.
-            timeout (float): The maximum amount of time allowed for planning.
+            start_pose: The pose to start planning from.
+            goal_pose: The desired pose.
+            timeout: The maximum amount of time allowed for planning.
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
 
         Returns:
-            list[Waypoint]: The resulting path found by the algorithm.
+            The resulting path found by the algorithm.
         """
         raise NotImplementedError("This method has not yet been implemented!")
 
@@ -143,18 +143,9 @@ class PrePlannedMissionPlanner(MissionPlanner):
             .string_value
         )
 
-        # Get the pre-planned mission
-        loader = PrePlannedMissionLoader(library_folder)
-        self.mission = loader.load_mission(mission_name)
-
-        # Notify users early that the system failed to load the mission
-        if len(self.mission) <= 0:
-            raise ValueError(
-                f"Failed to load the mission '{mission_name}' from {library_folder}"
-                f" or the specified mission has no waypoints. Please verify that"
-                " the provided mission name is accurate and that the library folder"
-                " is accessible to this node at runtime."
-            )
+        # Load the missions into the library
+        ml.load_mission_library_from_path(library_folder)
+        self.mission = ml.select_mission(mission_name)
 
         self.get_logger().info(f"Successfully loaded mission '{mission_name}'.")
 
@@ -164,14 +155,14 @@ class PrePlannedMissionPlanner(MissionPlanner):
         """Load a pre-planned mission.
 
         Args:
-            start_pose (PoseStamped): The pose to start planning from.
-            goal_pose (PoseStamped): The desired pose.
-            timeout (float): The maximum amount of time allowed for planning.
+            start_pose: The pose to start planning from.
+            goal_pose: The desired pose.
+            timeout: The maximum amount of time allowed for planning.
 
         Returns:
-            list[Waypoint]: The pre-planned mission.
+            The pre-planned mission.
         """
-        return self.mission
+        return self.mission.waypoints
 
 
 def main_preplanned(args: list[str] | None = None):

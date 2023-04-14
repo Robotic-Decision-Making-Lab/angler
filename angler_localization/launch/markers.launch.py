@@ -26,7 +26,7 @@ def generate_launch_description() -> LaunchDescription:
     """Generate a launch description for the ArUco marker TF broadcasters.
 
     Returns:
-        LaunchDescription: The ArUco marker TF broadcaster ROS 2 launch description.
+        The ArUco marker TF broadcaster ROS 2 launch description.
     """
     nodes = [
         Node(

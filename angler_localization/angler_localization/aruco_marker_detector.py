@@ -39,10 +39,9 @@ from gi.repository import Gst  # noqa
 class ArucoMarkerDetector(Node):
     """ArUco marker pose estimator.
 
-    The ArUco marker detector is responsible for detecting any ArUco markers in the
-    BlueROV2 camera stream and, if any markers are detected, estimating the pose of the
-    BlueROV2 relative to the tag. Once the pose has been estimated, the resulting pose
-    is sent to the ArduSub EKF for fusing.
+    The ArUco marker detector detects ArUco markers in the BlueROV2 camera stream
+    and estimates the pose of the BlueROV2 relative to the tag. The resulting pose
+    is sent to the ArduSub EKF.
     """
 
     ARUCO_MARKER_TYPES = [
@@ -119,10 +118,10 @@ class ArucoMarkerDetector(Node):
         GStreamer is used to receive video frames from the BlueROV2 for processing.
 
         Args:
-            port (int): The port at which the video feed is being streamed on.
+            port: The port at which the video feed is being streamed on.
 
         Returns:
-            tuple[Any, Any]: The video pipe and sink.
+            The video pipe and sink.
         """
         Gst.init(None)
 
@@ -150,13 +149,13 @@ class ArucoMarkerDetector(Node):
 
     @staticmethod
     def gst_to_opencv(frame: Any) -> np.ndarray:
-        """Convert a GStreamer frame to a NumPy array.
+        """Convert a GStreamer frame to an array.
 
         Args:
-            frame (Any): The GStreamer frame to convert to a NumPy array.
+            frame: The GStreamer frame to convert.
 
         Returns:
-            np.ndarray: A NumPy array containing the GStreamer video frame.
+            The GStreamer video frame as an array.
         """
         buf = frame.get_buffer()
         caps = frame.get_caps()
@@ -174,15 +173,14 @@ class ArucoMarkerDetector(Node):
     def detect_markers(self, frame: np.ndarray) -> tuple[Any, Any] | None:
         """Detect any ArUco markers in the frame.
 
-        NOTE: All markers in a frame should be the same type of ArUco marker
+        All markers in a frame should be the same type of ArUco marker
         (e.g., 4x4 50) if multiple are expected to be in-frame.
 
         Args:
-            frame (np.ndarray): The video frame containing ArUco markers.
+            frame: The video frame containing ArUco markers.
 
         Returns:
-            tuple[Any, Any] | None: A list of marker corners and IDs. If no markers were
-                found, returns None.
+            A list of marker corners and IDs. If no markers were found, returns None.
         """
         # Check each tag type, breaking when we find one that works
         for tag_type in self.ARUCO_MARKER_TYPES:
@@ -207,17 +205,16 @@ class ArucoMarkerDetector(Node):
     def get_camera_pose(self, frame: np.ndarray) -> tuple[Any, Any, int] | None:
         """Get the pose of the camera relative to any ArUco markers detected.
 
-        NOTE: If no markers are detected, nothing will be returned. If multiple markers
-        are detected, then the "largest" marker will be used to determine the pose of
-        the camera.
+        If multiple markers are detected, then the "largest" marker will be used to
+        determine the pose of the camera.
 
         Args:
-            frame (np.ndarray): The camera frame containing ArUco markers.
+            frame: The camera frame containing ArUco markers.
 
         Returns:
-            tuple[Any, Any, int] | None: The rotation vector and translation vector of
-                the camera in the marker frame and the ID of the marker detected. If
-                no marker was detected, returns None.
+            The rotation vector and translation vector of the camera in the marker
+            frame and the ID of the marker detected. If no marker was detected,
+            returns None.
         """
         # Convert to greyscale image then try to detect the tag(s)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -253,10 +250,10 @@ class ArucoMarkerDetector(Node):
         """Get the camera pose relative to the marker and send to the ArduSub EKF.
 
         Args:
-            sink (Any): The GStreamer video sink.
+            sink: The GStreamer video sink.
 
         Returns:
-            Any: The GStreamer response.
+            The GStreamer response.
         """
         # Convert from a GStreamer frame to a numpy array
         frame = self.gst_to_opencv(sink.emit("pull-sample"))

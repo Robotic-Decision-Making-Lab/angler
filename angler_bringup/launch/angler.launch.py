@@ -29,7 +29,7 @@ def generate_launch_description() -> LaunchDescription:
     """Generate a launch description to run the Angler system.
 
     Returns:
-        LaunchDescription: The Angler ROS 2 launch description.
+        The Angler ROS 2 launch description.
     """
     # Declare the launch arguments
     args = [

@@ -45,7 +45,7 @@
         "python.linting.mypyEnabled": true,
         "python.formatting.provider": "black",
         "autoDocstring.startOnNewLine": false,
-        "autoDocstring.docstringFormat": "google",
+        "autoDocstring.docstringFormat": "google-notypes",
         "isort.args": ["--profile", "black"],
         "isort.check": true,
         "python.autoComplete.extraPaths": [
