@@ -29,7 +29,7 @@ from rclpy.node import Node
 
 from angler_msgs.action import PlanMission
 from angler_msgs.msg import Waypoint
-from angler_planning.missions.loader import MissionLibrary as ml
+from angler_planning.missions.mission_library import MissionLibrary as ml
 
 
 class MissionPlanner(Node, ABC):
@@ -120,7 +120,7 @@ class PrePlannedMissionPlanner(MissionPlanner):
             [
                 ("mission_name", ""),
                 (
-                    "mission_library_folder",
+                    "library_path",
                     os.path.join(
                         get_package_share_directory("angler_planning"),
                         "missions",
@@ -137,14 +137,12 @@ class PrePlannedMissionPlanner(MissionPlanner):
         if mission_name == "":
             raise ValueError("Mission name not provided.")
 
-        library_folder = (
-            self.get_parameter("mission_library_folder")
-            .get_parameter_value()
-            .string_value
+        library_path = (
+            self.get_parameter("library_path").get_parameter_value().string_value
         )
 
         # Load the missions into the library
-        ml.load_mission_library_from_path(library_folder)
+        ml.load_mission_library_from_path(library_path)
         self.mission = ml.select_mission(mission_name)
 
         self.get_logger().info(f"Successfully loaded mission '{mission_name}'.")

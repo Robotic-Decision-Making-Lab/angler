@@ -118,7 +118,7 @@ class ArucoMarkerDetector(Node):
         GStreamer is used to receive video frames from the BlueROV2 for processing.
 
         Args:
-            port: The port at which the video feed is being streamed on.
+            port: The port over which the video feed is being streamed.
 
         Returns:
             The video pipe and sink.

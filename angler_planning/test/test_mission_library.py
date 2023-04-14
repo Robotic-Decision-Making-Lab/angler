@@ -20,8 +20,8 @@
 
 import pytest
 
-from angler_planning.missions.loader import Mission
-from angler_planning.missions.loader import MissionLibrary as ml
+from angler_planning.missions.mission_library import Mission
+from angler_planning.missions.mission_library import MissionLibrary as ml
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +31,7 @@ def reset_library(monkeypatch) -> None:
 
 
 def test_create_mission() -> None:
-    """Test that the mission is properly created."""
+    """Test that missions are properly created."""
     mission = Mission(
         "my_awesome_mission",
         "map",
@@ -104,6 +104,7 @@ def test_add_mission() -> None:
     ml.add_mission(mission)
 
     assert mission.name in ml._library
+    assert mission == ml._library[mission.name]
 
 
 def test_select_mission() -> None:
