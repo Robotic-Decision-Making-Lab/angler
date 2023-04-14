@@ -35,7 +35,7 @@ setup(
         (os.path.join("share", package_name), glob("launch/*.launch.py")),
         (os.path.join("share", package_name, "config"), glob("config/*.yml")),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", "numpy", "transforms3d", "opencv-python"],
     zip_safe=True,
     maintainer="Evan Palmer",
     maintainer_email="evanp922@gmail.com",

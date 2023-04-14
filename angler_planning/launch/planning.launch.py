@@ -18,40 +18,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from abc import ABC, abstractmethod
-
-import rclpy
-from rclpy.action import ActionServer
-from rclpy.node import Node
-
-
-class WaypointPlanner(Node, ABC):
-    def __init__(self) -> None:
-        Node.__init__(self, "waypoint_planner")
-        ABC.__init__(self)
-
-    def get_task_plan(self, planning_context):
-        ...
-
-    @abstractmethod
-    def plan(self, context):
-        raise NotImplementedError("This method has not yet been implemented!")
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
-class PreplannedWaypointPlanner(WaypointPlanner):
-    def __init__(self) -> None:
-        super().__init__()
+def generate_launch_description() -> LaunchDescription:
+    """Generate a launch description for the Angler planning interface.
 
-    def plan(self, context):
-        ...
+    Returns:
+        LaunchDescription: The Angler planning launch description.
+    """
+    args = [
+        DeclareLaunchArgument(
+            "config_filepath",
+            default_value=None,
+            description="The path to the configuration YAML file",
+        )
+    ]
 
+    nodes = [
+        Node(
+            package="angler_planning",
+            executable="preplanned_mission_planner",
+            name="preplanned_mission_planner",
+            output="screen",
+            parameters=[LaunchConfiguration("config_filepath")],
+        ),
+    ]
 
-def main_preplanned(args=None):
-    """Run the pre-planned waypoint planner."""
-    rclpy.init(args=args)
-
-    node = PreplannedWaypointPlanner()
-    rclpy.spin(node)
-
-    node.destroy_node()
-    rclpy.shutdown()
+    return LaunchDescription(args + nodes)

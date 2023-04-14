@@ -57,7 +57,23 @@ def generate_launch_description() -> LaunchDescription:
                     ]
                 )
             }.items(),
-        )
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("angler_planning"), "planning.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [
+                        FindPackageShare("angler_bringup"),
+                        "config",
+                        LaunchConfiguration("config"),
+                    ]
+                )
+            }.items(),
+        ),
     ]
 
     return LaunchDescription(args + includes)
