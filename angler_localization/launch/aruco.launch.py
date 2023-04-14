@@ -30,7 +30,7 @@ def generate_launch_description() -> LaunchDescription:
     """Generate a launch description for the ArUco marker localization node.
 
     Returns:
-        LaunchDescription: The ArUco detection ROS 2 launch description.
+        The ArUco detection ROS 2 launch description.
     """
     args = [
         DeclareLaunchArgument(

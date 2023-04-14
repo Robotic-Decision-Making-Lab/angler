@@ -19,40 +19,33 @@
 # THE SOFTWARE.
 
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the ArUco marker TF broadcasters.
+    """Generate a launch description for the Angler planning interface.
 
     Returns:
-        The ArUco marker TF broadcaster ROS 2 launch description.
+        LaunchDescription: The Angler planning launch description.
     """
-    nodes = [
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            name="marker_00_to_map_tf_broadcaster",
-            arguments=[
-                "--x",
-                "0.0",
-                "--y",
-                "0.0",
-                "--z",
-                "0.0",
-                "--roll",
-                "0",
-                "--pitch",
-                "0",
-                "--yaw",
-                "0",
-                "--frame-id",
-                "map",
-                "--child-frame-id",
-                "marker_00",
-            ],
-            output="screen",
+    args = [
+        DeclareLaunchArgument(
+            "config_filepath",
+            default_value=None,
+            description="The path to the configuration YAML file",
         )
     ]
 
-    return LaunchDescription(nodes)
+    nodes = [
+        Node(
+            package="angler_planning",
+            executable="preplanned_mission_planner",
+            name="preplanned_mission_planner",
+            output="screen",
+            parameters=[LaunchConfiguration("config_filepath")],
+        ),
+    ]
+
+    return LaunchDescription(args + nodes)

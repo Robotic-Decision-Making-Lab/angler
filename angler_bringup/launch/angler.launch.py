@@ -29,7 +29,7 @@ def generate_launch_description() -> LaunchDescription:
     """Generate a launch description to run the Angler system.
 
     Returns:
-        LaunchDescription: The Angler ROS 2 launch description.
+        The Angler ROS 2 launch description.
     """
     # Declare the launch arguments
     args = [
@@ -57,7 +57,23 @@ def generate_launch_description() -> LaunchDescription:
                     ]
                 )
             }.items(),
-        )
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("angler_planning"), "planning.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [
+                        FindPackageShare("angler_bringup"),
+                        "config",
+                        LaunchConfiguration("config"),
+                    ]
+                )
+            }.items(),
+        ),
     ]
 
     return LaunchDescription(args + includes)

@@ -18,41 +18,38 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from launch import LaunchDescription
-from launch_ros.actions import Node
+import os
+from glob import glob
 
+from setuptools import find_packages, setup
 
-def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the ArUco marker TF broadcasters.
+package_name = "angler_planning"
 
-    Returns:
-        The ArUco marker TF broadcaster ROS 2 launch description.
-    """
-    nodes = [
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            name="marker_00_to_map_tf_broadcaster",
-            arguments=[
-                "--x",
-                "0.0",
-                "--y",
-                "0.0",
-                "--z",
-                "0.0",
-                "--roll",
-                "0",
-                "--pitch",
-                "0",
-                "--yaw",
-                "0",
-                "--frame-id",
-                "map",
-                "--child-frame-id",
-                "marker_00",
-            ],
-            output="screen",
-        )
-    ]
-
-    return LaunchDescription(nodes)
+setup(
+    name=package_name,
+    version="0.0.1",
+    packages=find_packages(exclude=["test"]),
+    data_files=[
+        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        ("share/" + package_name, ["package.xml"]),
+        (os.path.join("share", package_name), glob("launch/*.launch.py")),
+        (
+            os.path.join("share", package_name, "missions", "library"),
+            glob(f"{package_name}/missions/library/*.json"),
+        ),
+    ],
+    install_requires=["setuptools", "scipy"],
+    zip_safe=True,
+    maintainer="Evan Palmer",
+    maintainer_email="evanp922@gmail.com",
+    description=(
+        "A collection of ROS 2 nodes responsible for trajectory and motion planning."
+    ),
+    license="MIT",
+    tests_require=["pytest"],
+    entry_points={
+        "console_scripts": [
+            "preplanned_mission_planner = angler_planning.mission_planner:main_preplanned"  # noqa
+        ],
+    },
+)

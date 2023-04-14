@@ -1,0 +1,18 @@
+# Plan a sequence of waypoints for the UVMS to track.
+
+std_msgs/Header header
+
+# The maximum amount of time that the planner has to generate a trajectory.
+# This can be used by anytime algorithms (e.g., Anytime A*).
+float64 timeout
+
+# The current pose of the UVMS.
+geometry_msgs/Pose current_pose
+
+# The target pose.
+geometry_msgs/Pose goal_pose
+---
+# Return a task-plan that the UVMS should execute.
+angler_msgs/Waypoint[] mission
+---
+# No feedback is provided.
