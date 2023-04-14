@@ -20,6 +20,14 @@ repos:
     hooks:
       - id: pydocstyle
 
+    # We use flake8 here as part of our linting checks because
+    # the colcon implementation does not *currently* support custom
+    # configurations
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.33.0
     hooks:

@@ -30,7 +30,9 @@
           "*.world": "xml",
           "*.xacro": "xml",
           "*.srdf": "xml",
-          "*.rviz": "yaml"
+          "*.rviz": "yaml",
+          "*.msg": "txt",
+          "*.action": "txt"
         },
         "terminal.integrated.defaultProfile.linux": "bash",
         "files.insertFinalNewline": true,

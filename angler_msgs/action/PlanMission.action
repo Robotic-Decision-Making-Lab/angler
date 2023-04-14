@@ -1,4 +1,4 @@
-# Plan a sequence of waypoints for the AUVMS to track.
+# Plan a sequence of waypoints for the UVMS to track.
 
 std_msgs/Header header
 
@@ -6,13 +6,13 @@ std_msgs/Header header
 # This can be used by anytime algorithms (e.g., Anytime A*).
 float64 timeout
 
-# The current pose of the robot.
+# The current pose of the UVMS.
 geometry_msgs/Pose current_pose
 
-# The target pose that the robot should navigate to.
+# The target pose.
 geometry_msgs/Pose goal_pose
 ---
-# Return a task-plan that the robot should execute.
+# Return a task-plan that the UVMS should execute.
 angler_msgs/Waypoint[] mission
 ---
 # No feedback is provided.

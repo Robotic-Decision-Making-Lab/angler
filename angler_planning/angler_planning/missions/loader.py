@@ -82,7 +82,8 @@ class PrePlannedMissionLoader:
             acceleration (float): The desired acceleration when passing through
                 the waypoint.
             velocity (float): The desired velocity when passing through the waypoint.
-            frame (str): The coordinate frame that the pose is defined in.
+            frame (str): The coordinate frame that the pose is defined in. Defaults to
+                the 'map' frame.
 
         Returns:
             Waypoint: The resulting Waypoint message.
@@ -150,10 +151,11 @@ class PrePlannedMissionLoader:
         """Get the desired mission.
 
         Args:
-            mission_name (str): _description_
+            mission_name (str): The name of the mission to load.
 
         Returns:
-            list[Waypoint]: _description_
+            list[Waypoint]: The pre-planned mission converted into a list of Waypoint
+                messages.
         """
         mission_file = self.find_mission_file(mission_name)
 

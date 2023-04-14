@@ -130,7 +130,6 @@ class PrePlannedMissionPlanner(MissionPlanner):
             ],
         )
 
-        # Get the pre-planned mission
         mission_name = (
             self.get_parameter("mission_name").get_parameter_value().string_value
         )
@@ -143,19 +142,18 @@ class PrePlannedMissionPlanner(MissionPlanner):
             .get_parameter_value()
             .string_value
         )
-        loader = PrePlannedMissionLoader(library_folder)
 
+        # Get the pre-planned mission
+        loader = PrePlannedMissionLoader(library_folder)
         self.mission = loader.load_mission(mission_name)
 
         # Notify users early that the system failed to load the mission
         if len(self.mission) <= 0:
-            self.get_logger().warning(
-                (
-                    f"Failed to load the mission {mission_name} from {library_folder}"
-                    f" or the desired mission has no waypoints. Please verify that the"
-                    " provided mission name is accurate and that the library folder"
-                    " is accessible to this node at runtime."
-                )
+            raise ValueError(
+                f"Failed to load the mission '{mission_name}' from {library_folder}"
+                f" or the specified mission has no waypoints. Please verify that"
+                " the provided mission name is accurate and that the library folder"
+                " is accessible to this node at runtime."
             )
 
         self.get_logger().info(f"Successfully loaded mission '{mission_name}'.")
