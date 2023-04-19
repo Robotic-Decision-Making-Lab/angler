@@ -33,7 +33,6 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name), glob("launch/*.launch.py")),
-        (os.path.join("share", package_name, "config"), glob("config/*.yml")),
     ],
     install_requires=["setuptools", "numpy", "transforms3d", "opencv-python"],
     zip_safe=True,
@@ -47,7 +46,8 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "aruco_marker_detector = angler_localization.aruco_marker_detector:main",
+            "aruco_marker_localizer = angler_localization.source:main_camera",
+            "camera = angler_localization.localizer:main_aruco",
         ],
     },
 )

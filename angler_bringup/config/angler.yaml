@@ -1,6 +1,5 @@
-aruco_marker_detector:
+aruco_marker_localizer:
   ros__parameters:
-    port: 5600
     camera_matrix:
       [1078.17559, 0.0, 1010.57086, 0.0, 1076.46176, 463.06243, 0.0, 0.0, 1.0]
     distortion_coefficients:
@@ -20,6 +19,10 @@ aruco_marker_detector:
         1.0,
         0.0,
       ]
+
+camera:
+  ros__parameters:
+    port: 5600
 
 preplanned_mission_planner:
   ros__parameters:
