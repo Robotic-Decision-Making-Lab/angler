@@ -47,7 +47,7 @@ class Localizer(Node, ABC):
         Node.__init__(self, node_name)
         ABC.__init__(self)
 
-        # Provide a TF2 interface
+        # Provide access to TF2
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -59,6 +59,26 @@ class Localizer(Node, ABC):
 
 class ArucoMarkerLocalizer(Localizer):
     """Performs localization using ArUco markers."""
+
+    ARUCO_MARKER_TYPES = [
+        cv2.aruco.DICT_4X4_50,
+        cv2.aruco.DICT_4X4_100,
+        cv2.aruco.DICT_4X4_250,
+        cv2.aruco.DICT_4X4_1000,
+        cv2.aruco.DICT_5X5_50,
+        cv2.aruco.DICT_5X5_100,
+        cv2.aruco.DICT_5X5_250,
+        cv2.aruco.DICT_5X5_1000,
+        cv2.aruco.DICT_6X6_50,
+        cv2.aruco.DICT_6X6_100,
+        cv2.aruco.DICT_6X6_250,
+        cv2.aruco.DICT_6X6_1000,
+        cv2.aruco.DICT_7X7_50,
+        cv2.aruco.DICT_7X7_100,
+        cv2.aruco.DICT_7X7_250,
+        cv2.aruco.DICT_7X7_1000,
+        cv2.aruco.DICT_ARUCO_ORIGINAL,
+    ]
 
     def __init__(self) -> None:
         """Create a new ArUco marker localizer."""
