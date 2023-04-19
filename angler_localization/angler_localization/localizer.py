@@ -18,60 +18,57 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from abc import ABC
 from typing import Any
 
 import cv2
-import gi
 import numpy as np
 import rclpy
 import tf2_geometry_msgs  # noqa
 import tf_transformations as tf
+from cv_bridge import CvBridge
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
+from sensor_msgs.msg import Image
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
-gi.require_version("Gst", "1.0")
-from gi.repository import Gst  # noqa
+
+class Localizer(Node, ABC):
+    """Base class for implementing a visual localization interface."""
+
+    def __init__(self, node_name: str) -> None:
+        """Create a new localizer.
+
+        Args:
+            node_name: The name of the ROS 2 node.
+        """
+        Node.__init__(self, node_name)
+        ABC.__init__(self)
+
+        # Provide a TF2 interface
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # SLAM poses are sent to the ArduPilot EKF
+        self.localization_pub = self.create_publisher(
+            PoseStamped, "/mavros/vision_pose/pose", 1
+        )
 
 
-class ArucoMarkerDetector(Node):
-    """ArUco marker pose estimator.
-
-    The ArUco marker detector detects ArUco markers in the BlueROV2 camera stream
-    and estimates the pose of the BlueROV2 relative to the tag. The resulting pose
-    is sent to the ArduSub EKF.
-    """
-
-    ARUCO_MARKER_TYPES = [
-        cv2.aruco.DICT_4X4_50,
-        cv2.aruco.DICT_4X4_100,
-        cv2.aruco.DICT_4X4_250,
-        cv2.aruco.DICT_4X4_1000,
-        cv2.aruco.DICT_5X5_50,
-        cv2.aruco.DICT_5X5_100,
-        cv2.aruco.DICT_5X5_250,
-        cv2.aruco.DICT_5X5_1000,
-        cv2.aruco.DICT_6X6_50,
-        cv2.aruco.DICT_6X6_100,
-        cv2.aruco.DICT_6X6_250,
-        cv2.aruco.DICT_6X6_1000,
-        cv2.aruco.DICT_7X7_50,
-        cv2.aruco.DICT_7X7_100,
-        cv2.aruco.DICT_7X7_250,
-        cv2.aruco.DICT_7X7_1000,
-        cv2.aruco.DICT_ARUCO_ORIGINAL,
-    ]
+class ArucoMarkerLocalizer(Localizer):
+    """Performs localization using ArUco markers."""
 
     def __init__(self) -> None:
-        """Create a new ArUco marker detector."""
-        super().__init__("aruco_marker_detector")
+        """Create a new ArUco marker localizer."""
+        super().__init__("aruco_marker_localizer")
+
+        self.bridge = CvBridge()
 
         self.declare_parameters(
             "",
             [
-                ("port", 5600),
                 ("camera_matrix", [0.0 for _ in range(9)]),  # Reshaped to 3x3
                 ("projection_matrix", [0.0 for _ in range(12)]),  # Reshaped to 3x4
                 ("distortion_coefficients", [0.0 for _ in range(5)]),
@@ -100,74 +97,8 @@ class ArucoMarkerDetector(Node):
             np.float32,
         ).reshape(1, 5)
 
-        self.visual_odom_pub = self.create_publisher(
-            PoseStamped, "/mavros/vision_pose/pose", 1
-        )
-
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-
-        # Start the GStreamer stream
-        self.video_pipe, self.video_sink = self.init_stream(
-            self.get_parameter("port").get_parameter_value().integer_value
-        )
-
-    def init_stream(self, port: int) -> tuple[Any, Any]:
-        """Initialize a GStreamer video stream interface.
-
-        GStreamer is used to receive video frames from the BlueROV2 for processing.
-
-        Args:
-            port: The port over which the video feed is being streamed.
-
-        Returns:
-            The video pipe and sink.
-        """
-        Gst.init(None)
-
-        video_source = f"udpsrc port={port}"
-        video_codec = (
-            "! application/x-rtp, payload=96 ! rtph264depay ! h264parse ! avdec_h264"
-        )
-        video_decode = (
-            "! decodebin ! videoconvert ! video/x-raw,format=(string)BGR ! videoconvert"
-        )
-        video_sink_conf = (
-            "! appsink emit-signals=true sync=false max-buffers=2 drop=true"
-        )
-
-        command = " ".join([video_source, video_codec, video_decode, video_sink_conf])
-
-        video_pipe = Gst.parse_launch(command)
-        video_pipe.set_state(Gst.State.PLAYING)
-
-        video_sink = video_pipe.get_by_name("appsink0")
-
-        video_sink.connect("new-sample", self.extract_and_publish_pose_cb)
-
-        return video_pipe, video_sink
-
-    @staticmethod
-    def gst_to_opencv(frame: Any) -> np.ndarray:
-        """Convert a GStreamer frame to an array.
-
-        Args:
-            frame: The GStreamer frame to convert.
-
-        Returns:
-            The GStreamer video frame as an array.
-        """
-        buf = frame.get_buffer()
-        caps = frame.get_caps()
-
-        return np.ndarray(
-            (
-                caps.get_structure(0).get_value("height"),
-                caps.get_structure(0).get_value("width"),
-                3,
-            ),
-            buffer=buf.extract_dup(0, buf.get_size()),
-            dtype=np.uint8,
+        self.camera_sub = self.create_subscription(
+            Image, "/blue/camera", self.extract_and_publish_pose_cb, 1
         )
 
     def detect_markers(self, frame: np.ndarray) -> tuple[Any, Any] | None:
@@ -246,27 +177,21 @@ class ArucoMarkerDetector(Node):
 
         return rot_vec, trans_vec, min_marker_id
 
-    def extract_and_publish_pose_cb(self, sink: Any) -> Any:
+    def extract_and_publish_pose_cb(self, frame: Image) -> None:
         """Get the camera pose relative to the marker and send to the ArduSub EKF.
 
         Args:
-            sink: The GStreamer video sink.
-
-        Returns:
-            The GStreamer response.
+            frame: The BlueROV2 camera frame.
         """
-        # Convert from a GStreamer frame to a numpy array
-        frame = self.gst_to_opencv(sink.emit("pull-sample"))
-
         # Get the pose of the camera in the `marker` frame
-        camera_pose = self.get_camera_pose(frame)
+        camera_pose = self.get_camera_pose(self.bridge.imgmsg_to_cv2(frame))
 
         # If there was no marker in the image, exit early
         if camera_pose is None:
             self.get_logger().debug(
                 "An ArUco marker could not be detected in the current image"
             )
-            return Gst.FlowReturn.OK
+            return
 
         rot_vec, trans_vec, marker_id = camera_pose
 
@@ -299,19 +224,17 @@ class ArucoMarkerDetector(Node):
             self.get_logger().warning(
                 f"Could not transform from frame marker_{marker_id} to map: {e}"
             )
-            return Gst.FlowReturn.OK
+            return
 
         # Publish the transformed pose
-        self.visual_odom_pub.publish(pose)
-
-        return Gst.FlowReturn.OK
+        self.localization_pub.publish(pose)
 
 
-def main(args=None):
+def main_aruco(args: list[str] | None = None):
     """Run the ArUco marker detector."""
     rclpy.init(args=args)
 
-    node = ArucoMarkerDetector()
+    node = ArucoMarkerLocalizer()
     rclpy.spin(node)
 
     node.destroy_node()

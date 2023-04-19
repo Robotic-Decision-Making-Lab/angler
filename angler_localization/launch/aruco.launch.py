@@ -27,10 +27,10 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the ArUco marker localization node.
+    """Generate a launch description for the localization package.
 
     Returns:
-        The ArUco detection ROS 2 launch description.
+        The localization ROS 2 launch description.
     """
     args = [
         DeclareLaunchArgument(
@@ -43,8 +43,15 @@ def generate_launch_description() -> LaunchDescription:
     nodes = [
         Node(
             package="angler_localization",
-            executable="aruco_marker_detector",
-            name="aruco_marker_detector",
+            executable="camera",
+            name="camera",
+            output="screen",
+            parameters=[LaunchConfiguration("config_filepath")],
+        ),
+        Node(
+            package="angler_localization",
+            executable="aruco_marker_localizer",
+            name="aruco_marker_localizer",
             output="screen",
             parameters=[LaunchConfiguration("config_filepath")],
         ),
