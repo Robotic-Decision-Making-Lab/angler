@@ -31,6 +31,10 @@ qualisys_mocap:
     version: "1.22"
     body: "angler"
 
+qualisys_localizer:
+  ros__parameters:
+    body: "angler" # This should be the same as the body parameter setting for the qualisys_mocap node
+
 preplanned_mission_planner:
   ros__parameters:
     mission_name: "straight"
