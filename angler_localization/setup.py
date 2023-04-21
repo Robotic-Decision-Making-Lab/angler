@@ -49,6 +49,7 @@ setup(
             "camera = angler_localization.source:main_camera",
             "qualisys_mocap = angler_localization.source:main_qualisys_mocap",
             "aruco_marker_localizer = angler_localization.localizer:main_aruco",
+            "qualisys_localizer = angler_localization.localizer:main_qualisys",
         ],
     },
 )

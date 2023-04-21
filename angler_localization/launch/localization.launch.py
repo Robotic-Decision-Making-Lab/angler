@@ -80,6 +80,16 @@ def generate_launch_description() -> LaunchDescription:
                 PythonExpression(["'", source, "' == 'qualisys_mocap'"])
             ),
         ),
+        Node(
+            package="angler_localization",
+            executable="qualisys_localizer",
+            name="qualisys_localizer",
+            output="screen",
+            parameters=[LaunchConfiguration("config_filepath")],
+            condition=IfCondition(
+                PythonExpression(["'", source, "' == 'qualisys_mocap'"])
+            ),
+        ),
     ]
 
     includes = [

@@ -262,7 +262,7 @@ class QualisysLocalizer(Localizer):
         body = self.get_parameter("body").get_parameter_value().string_value
 
         self.mocap_sub = self.create_subscription(
-            PoseStamped, f"/angler/mocap/qualisys/{body}", self.proxy_pose_cb
+            PoseStamped, f"/angler/mocap/qualisys/{body}", self.proxy_pose_cb, 1
         )
 
     def proxy_pose_cb(self, pose: PoseStamped) -> None:
