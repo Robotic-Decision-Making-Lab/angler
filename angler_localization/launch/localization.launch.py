@@ -20,8 +20,13 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -37,8 +42,16 @@ def generate_launch_description() -> LaunchDescription:
             "config_filepath",
             default_value=None,
             description="The path to the configuration YAML file",
-        )
+        ),
+        DeclareLaunchArgument(
+            "source",
+            default_value="qualisys_mocap",
+            choices=["qualisys_mocap", "camera"],
+            description="The localization source to stream from.",
+        ),
     ]
+
+    source = LaunchConfiguration("source")
 
     nodes = [
         Node(
@@ -47,6 +60,7 @@ def generate_launch_description() -> LaunchDescription:
             name="camera",
             output="screen",
             parameters=[LaunchConfiguration("config_filepath")],
+            condition=IfCondition(PythonExpression(["'", source, "' == 'camera'"])),
         ),
         Node(
             package="angler_localization",
@@ -54,6 +68,17 @@ def generate_launch_description() -> LaunchDescription:
             name="aruco_marker_localizer",
             output="screen",
             parameters=[LaunchConfiguration("config_filepath")],
+            condition=IfCondition(PythonExpression(["'", source, "' == 'camera'"])),
+        ),
+        Node(
+            package="angler_localization",
+            executable="qualisys_mocap",
+            name="qualisys_mocap",
+            output="screen",
+            parameters=[LaunchConfiguration("config_filepath")],
+            condition=IfCondition(
+                PythonExpression(["'", source, "' == 'qualisys_mocap'"])
+            ),
         ),
     ]
 
@@ -64,6 +89,7 @@ def generate_launch_description() -> LaunchDescription:
                     [FindPackageShare("angler_localization"), "markers.launch.py"]
                 )
             ),
+            condition=IfCondition(PythonExpression(["'", source, "' == 'camera'"])),
         )
     ]
 

@@ -24,6 +24,13 @@ camera:
   ros__parameters:
     port: 5600
 
+qualisys_mocap:
+  ros__parameters:
+    ip: "192.168.0.0"
+    port: 22223
+    version: "1.22"
+    body: "angler"
+
 preplanned_mission_planner:
   ros__parameters:
     mission_name: "straight"

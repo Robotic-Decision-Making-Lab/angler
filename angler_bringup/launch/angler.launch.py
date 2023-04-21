@@ -37,7 +37,13 @@ def generate_launch_description() -> LaunchDescription:
             "config",
             default_value="angler.yaml",
             description="The configuration file to use.",
-        )
+        ),
+        DeclareLaunchArgument(
+            "source",
+            default_value="qualisys_mocap",
+            choices=["qualisys_mocap", "camera"],
+            description="The localization source to stream from.",
+        ),
     ]
 
     # Declare additional launch files to run
@@ -45,7 +51,7 @@ def generate_launch_description() -> LaunchDescription:
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution(
-                    [FindPackageShare("angler_localization"), "aruco.launch.py"]
+                    [FindPackageShare("angler_localization"), "localization.launch.py"]
                 )
             ),
             launch_arguments={
@@ -55,7 +61,8 @@ def generate_launch_description() -> LaunchDescription:
                         "config",
                         LaunchConfiguration("config"),
                     ]
-                )
+                ),
+                "source": LaunchConfiguration("source"),
             }.items(),
         ),
         IncludeLaunchDescription(

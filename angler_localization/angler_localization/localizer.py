@@ -250,11 +250,50 @@ class ArucoMarkerLocalizer(Localizer):
         self.localization_pub.publish(pose)
 
 
+class QualisysLocalizer(Localizer):
+    """Performs localization using the Qualisys motion capture system."""
+
+    def __init__(self) -> None:
+        """Create a new Qualisys motion capture localizer."""
+        super().__init__("qualisys_localizer")
+
+        self.declare_parameter("body", "angler")
+
+        body = self.get_parameter("body").get_parameter_value().string_value
+
+        self.mocap_sub = self.create_subscription(
+            PoseStamped, f"/angler/mocap/qualisys/{body}", self.proxy_pose_cb
+        )
+
+    def proxy_pose_cb(self, pose: PoseStamped) -> None:
+        """Proxy the pose to the ArduSub EKF.
+
+        The pose published by the Qualisys motion capture system is already defined in
+        the map frame. Therefore, all that needs to be done is to proxy this forward to
+        the EKF.
+
+        Args:
+            pose: The pose of the BlueROV2 identified by the motion capture system.
+        """
+        self.localization_pub.publish(pose)
+
+
 def main_aruco(args: list[str] | None = None):
     """Run the ArUco marker detector."""
     rclpy.init(args=args)
 
     node = ArucoMarkerLocalizer()
+    rclpy.spin(node)
+
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+def main_qualisys(args: list[str] | None = None):
+    """Run the Qualisys localizer."""
+    rclpy.init(args=args)
+
+    node = QualisysLocalizer()
     rclpy.spin(node)
 
     node.destroy_node()
