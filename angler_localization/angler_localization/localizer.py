@@ -251,7 +251,7 @@ class ArucoMarkerLocalizer(Localizer):
 
 
 class QualisysLocalizer(Localizer):
-    """Performs localization using the Qualisys motion capture system."""
+    """Localize the Angler system using the Qualisys motion capture system."""
 
     def __init__(self) -> None:
         """Create a new Qualisys motion capture localizer."""
