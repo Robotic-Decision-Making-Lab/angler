@@ -34,7 +34,7 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name), glob("launch/*.launch.py")),
     ],
-    install_requires=["setuptools", "numpy", "transforms3d", "opencv-python"],
+    install_requires=["setuptools", "numpy", "transforms3d", "opencv-python", "qtm"],
     zip_safe=True,
     maintainer="Evan Palmer",
     maintainer_email="evanp922@gmail.com",
@@ -46,8 +46,10 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "aruco_marker_localizer = angler_localization.source:main_camera",
-            "camera = angler_localization.localizer:main_aruco",
+            "camera = angler_localization.source:main_camera",
+            "qualisys_mocap = angler_localization.source:main_qualisys_mocap",
+            "aruco_marker_localizer = angler_localization.localizer:main_aruco",
+            "qualisys_localizer = angler_localization.localizer:main_qualisys",
         ],
     },
 )

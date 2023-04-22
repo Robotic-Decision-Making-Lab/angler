@@ -37,7 +37,29 @@ def generate_launch_description() -> LaunchDescription:
             "config",
             default_value="angler.yaml",
             description="The configuration file to use.",
-        )
+        ),
+        DeclareLaunchArgument(
+            "localization_source",
+            default_value="mocap",
+            choices=["mocap", "camera"],
+            description="The localization source to stream from.",
+        ),
+        DeclareLaunchArgument(
+            "use_camera",
+            default_value="false",
+            description=(
+                "Launch the BlueROV2 camera stream. This is automatically set to true"
+                " when using the camera for localization."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "use_mocap",
+            default_value="false",
+            description=(
+                "Launch the Qualisys motion capture stream. This is automatically"
+                " set to true when using the motion capture system for localization."
+            ),
+        ),
     ]
 
     # Declare additional launch files to run
@@ -45,7 +67,7 @@ def generate_launch_description() -> LaunchDescription:
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution(
-                    [FindPackageShare("angler_localization"), "aruco.launch.py"]
+                    [FindPackageShare("angler_localization"), "localization.launch.py"]
                 )
             ),
             launch_arguments={
@@ -55,7 +77,10 @@ def generate_launch_description() -> LaunchDescription:
                         "config",
                         LaunchConfiguration("config"),
                     ]
-                )
+                ),
+                "localization_source": LaunchConfiguration("localization_source"),
+                "use_mocap": LaunchConfiguration("use_mocap"),
+                "use_camera": LaunchConfiguration("use_camera"),
             }.items(),
         ),
         IncludeLaunchDescription(
