@@ -15,5 +15,8 @@ export GZ_SIM_RESOURCE_PATH=$HOME/ardupilot_gazebo/models:$HOME/ardupilot_gazebo
 # Add blue models and worlds
 export GZ_SIM_RESOURCE_PATH=/workspaces/angler/blue/blue_description/gazebo/models:/workspaces/angler/blue/blue_description/gazebo/worlds:$GZ_SIM_RESOURCE_PATH
 
+# Add angler models and worlds
+export GZ_SIM_RESOURCE_PATH=/workspaces/angler/angler_description/gazebo/models:/workspaces/angler/angler_description/gazebo/worlds:$GZ_SIM_RESOURCE_PATH
+
 # Build ros_gz on the humble branch for Gazebo Garden
 export GZ_VERSION=garden

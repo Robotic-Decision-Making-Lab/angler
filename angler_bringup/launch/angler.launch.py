@@ -21,7 +21,11 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -34,9 +38,43 @@ def generate_launch_description() -> LaunchDescription:
     # Declare the launch arguments
     args = [
         DeclareLaunchArgument(
-            "config_filepath",
-            default_value=None,
-            description="The path to the configuration YAML file.",
+            "description_package",
+            default_value="angler_description",
+            description=(
+                "The description package with the angler configuration files. This is"
+                " typically not set, but is available in case another description"
+                " package has been defined."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "planning_file",
+            default_value="planning.yaml",
+            description="The Angler planning configuration file.",
+        ),
+        DeclareLaunchArgument(
+            "mux_file",
+            default_value="mux.yaml",
+            description="The Angler mux + demux configuration file.",
+        ),
+        DeclareLaunchArgument(
+            "controllers_file",
+            default_value="blue_controllers.yaml",
+            description="The BlueROV2 Heavy controller configuration file.",
+        ),
+        DeclareLaunchArgument(
+            "localization_file",
+            default_value="localization.yaml",
+            description="The BlueROV2 Heavy localization configuration file.",
+        ),
+        DeclareLaunchArgument(
+            "manager_file",
+            default_value="blue_manager.yaml",
+            description="The BlueROV2 Heavy manager configuration file.",
+        ),
+        DeclareLaunchArgument(
+            "mavros_file",
+            default_value="mavros.yaml",
+            description="The MAVROS configuration file.",
         ),
         DeclareLaunchArgument(
             "base_controller",
@@ -80,22 +118,13 @@ def generate_launch_description() -> LaunchDescription:
             description="Launch the Gazebo + ArduSub simulator.",
         ),
         DeclareLaunchArgument(
-            "description_package",
-            default_value="angler_description",
-            description=(
-                "The description package with the UVMS models. This is typically"
-                " not set, but is available in case another description package has"
-                " been defined."
-            ),
-        ),
-        DeclareLaunchArgument(
             "gazebo_world_file",
-            default_value="bluerov2_heavy_underwater.world",
+            default_value="angler.world",
             description="The world configuration to load if using Gazebo.",
         ),
         DeclareLaunchArgument(
             "ardusub_params_file",
-            default_value="bluerov2_heavy.parm",
+            default_value="angler.parm",
             description=(
                 "The ArduSub parameters that the BlueROV2 should use if running in"
                 " simulation."
@@ -110,14 +139,20 @@ def generate_launch_description() -> LaunchDescription:
         ),
     ]
 
-    config_filepath = LaunchConfiguration("config_filepath")
+    description_package = LaunchConfiguration("description_package")
+    planning_file = LaunchConfiguration("planning_file")
+    mux_file = LaunchConfiguration("mux_file")
+    controllers_file = LaunchConfiguration("controllers_file")
+    localization_file = LaunchConfiguration("localization_file")
+    manager_file = LaunchConfiguration("manager_file")
+    mavros_file = LaunchConfiguration("mavros_file")
+
     base_controller = LaunchConfiguration("base_controller")
     manipulator_controller = LaunchConfiguration("manipulator_controller")
     localization_source = LaunchConfiguration("localization_source")
     use_camera = LaunchConfiguration("use_camera")
     use_mocap = LaunchConfiguration("use_mocap")
     use_sim = LaunchConfiguration("use_sim")
-    description_package = LaunchConfiguration("description_package")
     gazebo_world_file = LaunchConfiguration("gazebo_world_file")
     ardusub_params_file = LaunchConfiguration("ardusub_params_file")
     manipulator_serial_port = LaunchConfiguration("manipulator_serial_port")
@@ -130,13 +165,21 @@ def generate_launch_description() -> LaunchDescription:
                     [FindPackageShare("angler_planning"), "planning.launch.py"]
                 )
             ),
-            launch_arguments={"config_filepath": config_filepath}.items(),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [FindPackageShare(description_package), "config", planning_file]
+                )
+            }.items(),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution([FindPackageShare("angler_mux"), "mux.launch.py"])
             ),
-            launch_arguments={"config_filepath": config_filepath}.items(),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [FindPackageShare(description_package), "config", mux_file]
+                )
+            }.items(),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
@@ -144,7 +187,18 @@ def generate_launch_description() -> LaunchDescription:
                     [FindPackageShare("blue_bringup"), "bluerov2_heavy.launch.py"]
                 )
             ),
-            launch_arguments={"config_filepath": config_filepath}.items(),
+            launch_arguments={
+                "blue_description": description_package,
+                "controllers_file": controllers_file,
+                "localization_file": localization_file,
+                "mavros_file": mavros_file,
+                "manager_file": manager_file,
+                "controller": base_controller,
+                "localization_source": localization_source,
+                "use_camera": use_camera,
+                "use_mocap": use_mocap,
+                "ardusub_params_file": ardusub_params_file,
+            }.items(),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
@@ -152,7 +206,12 @@ def generate_launch_description() -> LaunchDescription:
                     [FindPackageShare("alpha_bringup"), "alpha.launch.py"]
                 )
             ),
-            launch_arguments={"config_filepath": config_filepath}.items(),
+            launch_arguments={
+                "robot_controller": manipulator_controller,
+                "serial_port": manipulator_serial_port,
+                "use_rviz": PythonExpression("False"),
+                "use_fake_hardware": use_sim,
+            }.items(),
         ),
     ]
 

@@ -1,11 +1,18 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
+
   <name>angler_bringup</name>
   <version>0.0.1</version>
-  <description>Meta package for the Angler project.</description>
+  <description>Entrypoints for the Angler project</description>
+
   <maintainer email="evanp922@gmail.com">Evan Palmer</maintainer>
   <license>MIT</license>
+
+  <url type="repository">https://github.com/evan-palmer/blue.git</url>
+  <url type="bugtracker">https://github.com/evan-palmer/blue/issues</url>
+
+  <author>Evan Palmer</author>
 
   <exec_depend>mavros</exec_depend>
   <exec_depend>mavros_extras</exec_depend>
@@ -16,6 +23,6 @@
   <test_depend>python3-pytest</test_depend>
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>
