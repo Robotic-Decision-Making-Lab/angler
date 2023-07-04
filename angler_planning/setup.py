@@ -49,7 +49,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "preplanned_mission_planner = angler_planning.mission_planner:main_preplanned"  # noqa
+            "preplanned_mission_planner = mission_planning.mission_planner:main_preplanned"  # noqa
         ],
     },
 )

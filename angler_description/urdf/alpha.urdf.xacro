@@ -1,0 +1,238 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="alpha_urdf" params="parent prefix *origin">
+
+    <material name="${prefix}black">
+      <color rgba="0.3 0.3 0.3 1" />
+    </material>
+
+    <link name="${prefix}base_link" />
+
+    <link name="${prefix}m3_inline_link">
+      <visual>
+        <geometry>
+          <mesh filename="package://alpha_description/meshes/M3-INLINE.stl" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <material name="${prefix}black" />
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.150" radius="0.020" />
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.341" />
+        <origin xyz="-0.075 -0.006 -0.003" />
+        <inertia
+          ixx="0.000099"
+          ixy="0.000139"
+          ixz="0.000115"
+          iyy="0.00292"
+          iyz="0.000003"
+          izz="0.002934" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}m2_1_1_link">
+      <visual>
+        <geometry>
+          <mesh filename="package://alpha_description/meshes/M2-1-1.stl" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <material name="${prefix}black" />
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.066" radius="0.020" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0.000" />
+      </collision>
+      <inertial>
+        <mass value="0.194" />
+        <origin xyz="0.005 -0.001 0.016" />
+        <inertia
+          ixx="0.000189" ixy="0.000005" ixz="0.000054"
+          iyx="0.000005" iyy="0.000213" iyz="0.000003"
+          izx="0.000054" izy="0.000003" izz="0.000067" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}m2_joint_link">
+      <visual>
+        <geometry>
+          <mesh filename="package://alpha_description/meshes/M2.stl" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <material name="${prefix}black" />
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.145" radius="0.020" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="-0.02 0 -0.0725" />
+      </collision>
+      <collision>
+        <geometry>
+          <cylinder length="0.040" radius="0.020" />
+        </geometry>
+        <origin rpy="1.5707 0 0" xyz="0 0 0" />
+      </collision>
+      <collision>
+        <geometry>
+          <cylinder length="0.040" radius="0.020" />
+        </geometry>
+        <origin rpy="1.5707 0 0" xyz="-0.040 0 -0.1453" />
+      </collision>
+      <inertial>
+        <mass value="0.429" />
+        <origin xyz="0.073 0.0 0.0" />
+        <inertia
+          ixx="0.000087" ixy="-0.000076" ixz="-0.00001"
+          iyx="-0.000076" iyy="0.00319" iyz="0"
+          izx="-0.00001" izy="0" izz="0.003212" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}m2_1_2_link">
+      <visual>
+        <geometry>
+          <mesh filename="package://alpha_description/meshes/M2-1-3.stl" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <material name="${prefix}black" />
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.033" radius="0.020" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.02 0 0.0165" />
+      </collision>
+      <inertial>
+        <mass value="0.115" />
+        <origin xyz="0.017 -0.026 -0.002" />
+        <inertia
+          ixx="0.00012" ixy="-0.000061" ixz="-0.000001"
+          iyx="-0.000061" iyy="0.000062" iyz="0"
+          izx="-0.000001" izy="0" izz="0.000156" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}m1_link">
+      <visual>
+        <geometry>
+          <mesh
+            filename="package://alpha_description/meshes/RS1-100-101-123.stl" />
+        </geometry>
+        <origin rpy="0 -1.5707 0" xyz="0 0 0" />
+        <material name="${prefix}black" />
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.10975" radius="0.020" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.00 0 0.054875" />
+      </collision>
+      <inertial>
+        <mass value="0.333" />
+        <origin xyz="0.0 0.003 -0.098" />
+        <inertia
+          ixx="0.003709" ixy="0.000002" ixz="-0.000004"
+          iyx="0.000002" iyy="0.003734" iyz="0"
+          izx="-0.000004" izy="0" izz="0.000079" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}ee_base_link">
+      <inertial>
+        <mass value="2e-06" />
+        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
+          izz="1.1e-09" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}push_rod">
+      <inertial>
+        <mass value="2e-06" />
+        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
+          izz="1.1e-09" />
+      </inertial>
+    </link>
+
+    <joint name="${prefix}base_joint" type="fixed">
+      <xacro:insert_block name="origin" />
+      <parent link="${parent}" />
+      <child link="${prefix}base_link" />
+      <xacro:insert_block name="origin" />
+    </joint>
+
+    <joint name="${prefix}base_link_joint" type="fixed">
+      <parent link="${prefix}base_link" />
+      <child link="${prefix}m3_inline_link" />
+      <origin rpy="0 0 0" />
+    </joint>
+
+    <joint name="${prefix}axis_e" type="revolute">
+      <parent link="${prefix}m3_inline_link" />
+      <child link="${prefix}m2_1_1_link" />
+      <origin xyz="0 0 0.014" />
+      <axis xyz="0 0 1" />
+      <limit effort="9.0" lower="0.0" upper="6.10" velocity="0.5" />
+    </joint>
+
+    <joint name="${prefix}axis_d" type="revolute">
+      <parent link="${prefix}m2_1_1_link" />
+      <child link="${prefix}m2_joint_link" />
+      <origin xyz="-0.02 0 0.033" />
+      <axis xyz="0 1 0" />
+      <limit effort="9.0" lower="0.0" upper="3.49" velocity="0.5" />
+    </joint>
+
+    <joint name="${prefix}axis_c" type="revolute">
+      <parent link="${prefix}m2_joint_link" />
+      <child link="${prefix}m2_1_2_link" />
+      <origin xyz="-0.04 0 -0.1453" rpy="0 0 3.14159" />
+      <axis xyz="0 1 0" />
+      <limit effort="9.0" lower="0.0" upper="3.22" velocity="0.5" />
+    </joint>
+
+    <joint name="${prefix}axis_b" type="revolute">
+      <parent link="${prefix}m2_1_2_link" />
+      <child link="${prefix}m1_link" />
+      <origin xyz="0.02 0 0.033" rpy="0 0 2.09439" />
+      <axis xyz="0 0 -1" />
+      <limit effort="9.0" lower="0.0" upper="3.22" velocity="0.5" />
+    </joint>
+
+    <material name="${prefix}ee_black">
+      <color rgba="0.3 0.3 0.3 1" />
+    </material>
+
+    <joint name="${prefix}ee_joint" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0.09975" />
+      <parent link="${prefix}m1_link" />
+      <child link="${prefix}ee_base_link" />
+    </joint>
+
+    <joint name="${prefix}axis_a" type="prismatic">
+      <origin rpy="0 0 0" xyz="0 0 0.009" />
+      <parent link="${prefix}ee_base_link" />
+      <child link="${prefix}push_rod" />
+      <axis xyz="0 0 1" />
+      <limit effort="10" lower="0" upper="0.015" velocity="10" />
+    </joint>
+
+    <xacro:include
+      filename="$(find alpha_description)/urdf/end_effectors/standard_jaws.urdf.xacro" />
+
+    <xacro:alpha_standard_jaws parent="${prefix}ee_base_link"
+      prefix="${prefix}standard_jaws_"
+      axis_a="${prefix}axis_a">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:alpha_standard_jaws>
+
+  </xacro:macro>
+
+</robot>

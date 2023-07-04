@@ -19,13 +19,22 @@
 # THE SOFTWARE.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    RegisterEventHandler,
+)
+from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
+    Command,
+    FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
     PythonExpression,
 )
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -47,6 +56,11 @@ def generate_launch_description() -> LaunchDescription:
             ),
         ),
         DeclareLaunchArgument(
+            "description_file",
+            default_value="angler.config.xacro",
+            description="The URDF/XACRO description file with the Alpha.",
+        ),
+        DeclareLaunchArgument(
             "planning_file",
             default_value="planning.yaml",
             description="The Angler planning configuration file.",
@@ -58,7 +72,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "controllers_file",
-            default_value="blue_controllers.yaml",
+            default_value="angler_controllers.yaml",
             description="The BlueROV2 Heavy controller configuration file.",
         ),
         DeclareLaunchArgument(
@@ -89,6 +103,7 @@ def generate_launch_description() -> LaunchDescription:
             "manipulator_controller",
             default_value="forward_velocity_controller",
             description="The ros2_control controller to use with the manipulator(s).",
+            choices=["forward_velocity_controller"],
         ),
         DeclareLaunchArgument(
             "localization_source",
@@ -118,8 +133,11 @@ def generate_launch_description() -> LaunchDescription:
             description="Launch the Gazebo + ArduSub simulator.",
         ),
         DeclareLaunchArgument(
+            "use_rviz", default_value="true", description="Launch RViz2."
+        ),
+        DeclareLaunchArgument(
             "gazebo_world_file",
-            default_value="angler.world",
+            default_value="angler_underwater.world",
             description="The world configuration to load if using Gazebo.",
         ),
         DeclareLaunchArgument(
@@ -137,28 +155,218 @@ def generate_launch_description() -> LaunchDescription:
                 "The serial port that the Alpha 5 is available at (e.g., /dev/ttyUSB0)."
             ),
         ),
+        DeclareLaunchArgument(
+            "initial_positions_file",
+            default_value="initial_positions.yaml",
+            description=(
+                "The configuration file that defines the initial positions used for"
+                " the Reach Alpha 5 in simulation."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "prefix",
+            default_value="",
+            description=(
+                "The prefix of the BlueROV2. This is useful for multi-robot setups."
+                " Expected format '<prefix>/'."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "namespace",
+            default_value="",
+            description=(
+                "The namespace of the launched nodes. This is useful for multi-robot"
+                " setups. If the namespace is changed, then the namespace in the"
+                " controller configuration must be updated. Expected format '<ns>/'."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "use_fake_hardware",
+            default_value="true",
+            description=(
+                "Start the Reach Alpha 5 driver using fake hardware mirroring command"
+                " to its states. If this is set to 'false', the Alpha 5 manipulator"
+                " serial port should be specified."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "rviz_config",
+            default_value="view_angler.rviz",
+            description="The RViz2 configuration file.",
+        ),
     ]
 
     description_package = LaunchConfiguration("description_package")
+    description_file = LaunchConfiguration("description_file")
     planning_file = LaunchConfiguration("planning_file")
     mux_file = LaunchConfiguration("mux_file")
     controllers_file = LaunchConfiguration("controllers_file")
     localization_file = LaunchConfiguration("localization_file")
     manager_file = LaunchConfiguration("manager_file")
     mavros_file = LaunchConfiguration("mavros_file")
-
     base_controller = LaunchConfiguration("base_controller")
     manipulator_controller = LaunchConfiguration("manipulator_controller")
     localization_source = LaunchConfiguration("localization_source")
     use_camera = LaunchConfiguration("use_camera")
     use_mocap = LaunchConfiguration("use_mocap")
     use_sim = LaunchConfiguration("use_sim")
+    use_rviz = LaunchConfiguration("use_rviz")
     gazebo_world_file = LaunchConfiguration("gazebo_world_file")
     ardusub_params_file = LaunchConfiguration("ardusub_params_file")
     manipulator_serial_port = LaunchConfiguration("manipulator_serial_port")
+    initial_positions_file = LaunchConfiguration("initial_positions_file")
+    prefix = LaunchConfiguration("prefix")
+    use_fake_hardware = LaunchConfiguration("use_fake_hardware")
+    namespace = LaunchConfiguration("namespace")
+    rviz_config = LaunchConfiguration("rviz_config")
+
+    # Generate the robot description using xacro
+    robot_description = {
+        "robot_description": Command(
+            [
+                PathJoinSubstitution([FindExecutable(name="xacro")]),
+                " ",
+                PathJoinSubstitution(
+                    [
+                        FindPackageShare(description_package),
+                        "config",
+                        description_file,
+                    ]
+                ),
+                " ",
+                "prefix:=",
+                prefix,
+                " ",
+                "use_fake_hardware:=",
+                use_fake_hardware,
+                " ",
+                "use_sim:=",
+                use_sim,
+                " ",
+                "serial_port:=",
+                manipulator_serial_port,
+                " ",
+                "controllers_file:=",
+                controllers_file,
+                " ",
+                "initial_positions_file:=",
+                initial_positions_file,
+                " ",
+                "namespace:=",
+                namespace,
+            ]
+        )
+    }
+
+    # Declare ROS 2 nodes
+    control_node = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        output="both",
+        namespace=namespace,
+        parameters=[
+            robot_description,
+            PathJoinSubstitution(
+                [
+                    FindPackageShare(description_package),
+                    "config",
+                    controllers_file,
+                ]
+            ),
+        ],
+    )
+
+    robot_state_pub_node = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        name="robot_state_publisher",
+        output="both",
+        namespace=namespace,
+        parameters=[robot_description],
+    )
+
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager",
+            [namespace, "controller_manager"],
+        ],
+    )
+
+    robot_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            manipulator_controller,
+            "--controller-manager",
+            [namespace, "controller_manager"],
+        ],
+    )
+
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        arguments=[
+            "-d",
+            PathJoinSubstitution(
+                [FindPackageShare(description_package), "rviz", rviz_config]
+            ),
+        ],
+        parameters=[robot_description],
+        condition=IfCondition(use_rviz),
+    )
+
+    # Delay `joint_state_broadcaster` after control_node
+    delay_joint_state_broadcaster_spawner_after_control_node = RegisterEventHandler(
+        event_handler=OnProcessStart(
+            target_action=control_node,
+            on_start=[joint_state_broadcaster_spawner],
+        ),
+    )
+
+    # Delay rviz start after `joint_state_broadcaster`
+    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=joint_state_broadcaster_spawner,
+            on_exit=[rviz_node],
+        ),
+        condition=IfCondition(use_rviz),
+    )
+
+    # Delay start of robot_controller after `joint_state_broadcaster`
+    delay_robot_controller_spawners_after_joint_state_broadcaster_spawner = (
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=joint_state_broadcaster_spawner,
+                on_exit=[robot_controller_spawner],
+            ),
+        )
+    )
+
+    nodes = [
+        control_node,
+        robot_state_pub_node,
+        delay_joint_state_broadcaster_spawner_after_control_node,
+        delay_rviz_after_joint_state_broadcaster_spawner,
+        delay_robot_controller_spawners_after_joint_state_broadcaster_spawner,
+    ]
 
     # Declare additional launch files to run
     includes = [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [
+                        FindPackageShare("angler_bringup"),
+                        "launch",
+                        "static_tf_broadcasters.launch.py",
+                    ]
+                )
+            ),
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution(
@@ -167,7 +375,11 @@ def generate_launch_description() -> LaunchDescription:
             ),
             launch_arguments={
                 "config_filepath": PathJoinSubstitution(
-                    [FindPackageShare(description_package), "config", planning_file]
+                    [
+                        FindPackageShare(description_package),
+                        "config",
+                        planning_file,
+                    ]
                 )
             }.items(),
         ),
@@ -181,38 +393,30 @@ def generate_launch_description() -> LaunchDescription:
                 )
             }.items(),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [FindPackageShare("blue_bringup"), "bluerov2_heavy.launch.py"]
-                )
-            ),
-            launch_arguments={
-                "blue_description": description_package,
-                "controllers_file": controllers_file,
-                "localization_file": localization_file,
-                "mavros_file": mavros_file,
-                "manager_file": manager_file,
-                "controller": base_controller,
-                "localization_source": localization_source,
-                "use_camera": use_camera,
-                "use_mocap": use_mocap,
-                "ardusub_params_file": ardusub_params_file,
-            }.items(),
-        ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [FindPackageShare("alpha_bringup"), "alpha.launch.py"]
-                )
-            ),
-            launch_arguments={
-                "robot_controller": manipulator_controller,
-                "serial_port": manipulator_serial_port,
-                "use_rviz": PythonExpression("False"),
-                "use_fake_hardware": use_sim,
-            }.items(),
-        ),
+        #     IncludeLaunchDescription(
+        #         PythonLaunchDescriptionSource(
+        #             PathJoinSubstitution(
+        #                 [
+        #                     FindPackageShare("blue_bringup"),
+        #                     "launch",
+        #                     "bluerov2_heavy.launch.py",
+        #                 ]
+        #             )
+        #         ),
+        #         launch_arguments={
+        #             "description_package": "angler_description",
+        #             "controllers_file": controllers_file,
+        #             "localization_file": localization_file,
+        #             "mavros_file": mavros_file,
+        #             "manager_file": manager_file,
+        #             "controller": base_controller,
+        #             "localization_source": localization_source,
+        #             "use_camera": use_camera,
+        #             "use_mocap": use_mocap,
+        #             "ardusub_params_file": ardusub_params_file,
+        #         }.items(),
+        #     ),
     ]
 
-    return LaunchDescription(args + includes)
+    return LaunchDescription(args + nodes + includes)
+    # return LaunchDescription(args + includes)

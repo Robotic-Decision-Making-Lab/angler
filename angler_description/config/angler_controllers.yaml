@@ -26,3 +26,23 @@ ismc:
     sliding_gain: 20.0
     boundary_thickness: 200.0
     use_battery_state: false
+
+controller_manager:
+  ros__parameters:
+    update_rate: 225 # Hz
+
+    forward_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    # Joint state publisher
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+forward_velocity_controller:
+  ros__parameters:
+    joints:
+      - alpha_axis_a
+      - alpha_axis_b
+      - alpha_axis_c
+      - alpha_axis_d
+      - alpha_axis_e

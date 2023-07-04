@@ -1,0 +1,7 @@
+# Default initial positions for alpha's ros2_control fake system
+initial_positions:
+  alpha_axis_a: 0
+  alpha_axis_b: 0
+  alpha_axis_c: 0
+  alpha_axis_d: 1.5746
+  alpha_axis_e: 0

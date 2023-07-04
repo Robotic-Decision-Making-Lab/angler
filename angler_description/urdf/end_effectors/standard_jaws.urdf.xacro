@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="alpha_standard_jaws"
+    params="parent prefix axis_a *origin">
+
+    <material name="${prefix}black">
+      <color rgba="0.3 0.3 0.3 1" />
+    </material>
+
+    <link name="${prefix}base_link">
+      <visual>
+        <geometry>
+          <mesh
+            filename="package://alpha_description/meshes/end_effectors/RS1-124.stl" />
+        </geometry>
+        <material name="${prefix}black" />
+      </visual>
+      <inertial>
+        <mass value="2e-06" />
+        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
+          izz="1.1e-09" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}rs1_130_link">
+      <visual>
+        <geometry>
+          <mesh
+            filename="package://alpha_description/meshes/end_effectors/RS1-130.stl" />
+        </geometry>
+        <material name="${prefix}black" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.012 0.03 0.09" />
+        </geometry>
+        <origin xyz="0.0 -0.008 0.045" rpy="0 0 0" />
+      </collision>
+      <inertial>
+        <mass value="2e-06" />
+        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
+          izz="1.1e-09" />
+      </inertial>
+    </link>
+
+    <link name="${prefix}rs1_139_link">
+      <visual>
+        <geometry>
+          <mesh
+            filename="package://alpha_description/meshes/end_effectors/RS1-139.stl" />
+        </geometry>
+        <material name="${prefix}black" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.012 0.03 0.09" />
+        </geometry>
+        <origin xyz="0.0 0.008 0.045" rpy="0 0 0" />
+      </collision>
+      <inertial>
+        <mass value="2e-06" />
+        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
+          izz="1.1e-09" />
+      </inertial>
+    </link>
+
+    <joint name="${prefix}base_joint" type="fixed">
+      <xacro:insert_block name="origin" />
+      <parent link="${parent}" />
+      <child link="${prefix}base_link" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <joint name="${prefix}rs1_130_joint" type="revolute">
+      <origin xyz="0 0.0155 0.0069" rpy="0 0 0" />
+      <parent link="${prefix}base_link" />
+      <child link="${prefix}rs1_130_link" />
+      <axis xyz="-1 0 0" />
+      <limit lower="0" upper="0.5" effort="10" velocity="10" />
+      <mimic joint="${axis_a}" multiplier="51" offset="0" />
+    </joint>
+
+    <joint name="${prefix}rs1_139_joint" type="revolute">
+      <origin xyz="0 -0.0155 0.0069" rpy="0 0 0" />
+      <parent link="${prefix}base_link" />
+      <child link="${prefix}rs1_139_link" />
+      <axis xyz="1 0 0" />
+      <limit lower="0" upper="0.5" effort="10" velocity="10" />
+      <mimic joint="${prefix}rs1_130_joint" multiplier="1" offset="0" />
+    </joint>
+
+  </xacro:macro>
+
+</robot>

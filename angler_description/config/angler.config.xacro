@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<robot name="angler" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Declare arguments which can be set from a launch file -->
+  <xacro:arg name="prefix" default="" />
+  <xacro:arg name="use_fake_hardware" default="true" />
+  <xacro:arg name="use_sim" default="false" />
+  <xacro:arg name="serial_port" default="" />
+  <xacro:arg name="state_update_frequency" default="250" />
+  <xacro:arg name="controllers_file" default="alpha_controllers.yaml" />
+  <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
+  <xacro:arg name="namespace" default="" />
+
+  <!-- Import BlueROV2 Heavy macro -->
+  <xacro:include filename="$(find angler_description)/urdf/bluerov2_heavy.urdf.xacro" />
+
+  <!-- Import ros2_control macro -->
+  <xacro:include filename="$(find angler_description)/ros2_control/alpha.ros2_control.xacro" />
+
+  <!-- Import Gazebo macro -->
+  <xacro:include filename="$(find angler_description)/gazebo/angler.gazebo.xacro" />
+
+  <xacro:bluerov2_heavy_urdf prefix="$(arg prefix)" />
+
+  <xacro:if value="$(arg use_sim)">
+    <xacro:angler_gazebo prefix="$(arg prefix)" controllers_file="$(arg controllers_file)"
+      namespace="$(arg namespace)" />
+  </xacro:if>
+
+  <xacro:alpha_system
+    name="ReachAlpha5" use_fake_hardware="$(arg use_fake_hardware)" serial_port="$(arg serial_port)"
+    state_update_frequency="$(arg state_update_frequency)"
+    initial_positions_file="$(arg initial_positions_file)" use_sim="$(arg use_sim)" />
+
+</robot>
