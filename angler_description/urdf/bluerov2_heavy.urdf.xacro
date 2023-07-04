@@ -274,7 +274,8 @@
     </joint>
 
     <joint name="${prefix}manipulator_mount_joint" type="fixed">
-      <origin rpy="0 0 0" xyz="0 0 0" />
+      <!-- The Alpha is mounted upside-down -->
+      <origin rpy="0 0 0" xyz="0.24 -0.099 0.029" />
       <parent link="${prefix}base_link" />
       <child link="${prefix}manipulator_mount_link" />
     </joint>
