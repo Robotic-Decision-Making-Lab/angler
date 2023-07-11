@@ -12,7 +12,7 @@
   <xacro:arg name="namespace" default="" />
 
   <!-- Import BlueROV2 Heavy macro -->
-  <xacro:include filename="$(find angler_description)/urdf/bluerov2_heavy.urdf.xacro" />
+  <xacro:include filename="$(find angler_description)/urdf/bluerov2_heavy_modified.urdf.xacro" />
 
   <!-- Import ros2_control macro -->
   <xacro:include filename="$(find angler_description)/ros2_control/alpha.ros2_control.xacro" />
@@ -20,7 +20,7 @@
   <!-- Import Gazebo macro -->
   <xacro:include filename="$(find angler_description)/gazebo/angler.gazebo.xacro" />
 
-  <xacro:bluerov2_heavy_urdf prefix="$(arg prefix)" />
+  <xacro:bluerov2_heavy_modified_urdf prefix="$(arg prefix)" />
 
   <xacro:if value="$(arg use_sim)">
     <xacro:angler_gazebo prefix="$(arg prefix)" controllers_file="$(arg controllers_file)"

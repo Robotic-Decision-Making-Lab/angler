@@ -42,6 +42,8 @@ __pycache__
 alpha/
 blue/
 ros_gz/
+gz-plugin/
+gz_ros2_control/
 
 # ArduSub SITL
 eeprom.bin

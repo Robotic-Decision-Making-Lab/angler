@@ -35,7 +35,7 @@ setup(
         (os.path.join("share", package_name), glob("launch/*.launch.py")),
         (
             os.path.join("share", package_name, "missions", "library"),
-            glob(f"{package_name}/missions/library/*.json"),
+            glob("mission_planning/missions/library/*.json"),
         ),
     ],
     install_requires=["setuptools", "scipy"],

@@ -14,3 +14,13 @@ repositories:
     type: git
     url: https://github.com/gazebosim/ros_gz
     version: ros2
+
+  gz-plugin:
+    type: git
+    url: https://github.com/gazebosim/gz-plugin.git
+    version: gz-plugin2
+
+  gz_ros2_control:
+    type: git
+    url: https://github.com/ros-controls/gz_ros2_control.git
+    version: master

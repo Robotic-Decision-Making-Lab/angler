@@ -13,16 +13,6 @@
         <always_on>true</always_on>
         <update_rate>1000.0</update_rate>
         <topic>__default_topic__</topic>
-        <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
-          <topicName>imu</topicName>
-          <bodyName>imu_link</bodyName>
-          <updateRateHZ>1000.0</updateRateHZ>
-          <gaussianNoise>0.0</gaussianNoise>
-          <xyzOffset>0 0 0</xyzOffset>
-          <rpyOffset>0 0 0</rpyOffset>
-          <frameName>imu_link</frameName>
-          <initialOrientationAsReference>false</initialOrientationAsReference>
-        </plugin>
       </sensor>
     </gazebo>
 
@@ -299,38 +289,38 @@
       </plugin>
     </gazebo>
 
-    <gazebo reference="${prefix}alpha/base_link">
+    <gazebo reference="${prefix}alpha_base_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/ee_base_link">
+    <gazebo reference="${prefix}alpha_ee_base_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/m1_link" />
-    <gazebo reference="${prefix}alpha/m1_link">
+    <gazebo reference="${prefix}alpha_m1_link" />
+    <gazebo reference="${prefix}alpha_m1_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/m2_1_1_link">
+    <gazebo reference="${prefix}alpha_m2_1_1_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/m2_1_2_link">
+    <gazebo reference="${prefix}alpha_m2_1_2_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/m2_joint_link">
+    <gazebo reference="${prefix}alpha_m2_joint_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/m3_inline_link">
+    <gazebo reference="${prefix}alpha_m3_inline_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/push_rod">
+    <gazebo reference="${prefix}alpha_push_rod">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/standard_jaws_base_link">
+    <gazebo reference="${prefix}alpha_standard_jaws_base_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/standard_jaws_rs1_130_link">
+    <gazebo reference="${prefix}alpha_standard_jaws_rs1_130_link">
       <material>Gazebo/Gray</material>
     </gazebo>
-    <gazebo reference="${prefix}alpha/standard_jaws_rs1_139_link">
+    <gazebo reference="${prefix}alpha_standard_jaws_rs1_139_link">
       <material>Gazebo/Gray</material>
     </gazebo>
 
