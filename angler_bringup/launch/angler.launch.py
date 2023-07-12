@@ -18,9 +18,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import os
+
+import xacro
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    ExecuteProcess,
     IncludeLaunchDescription,
     RegisterEventHandler,
 )
@@ -32,7 +37,6 @@ from launch.substitutions import (
     FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
-    PythonExpression,
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -82,7 +86,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "manager_file",
-            default_value="blue_manager.yaml",
+            default_value="manager.yaml",
             description="The BlueROV2 Heavy manager configuration file.",
         ),
         DeclareLaunchArgument(
@@ -305,6 +309,42 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
+    mavros = Node(
+        package="mavros",
+        executable="mavros_node",
+        output="screen",
+        parameters=[
+            PathJoinSubstitution(
+                [FindPackageShare(description_package), "config", mavros_file]
+            )
+        ],
+    )
+
+    ros_gz_bridge = Node(
+        package="ros_gz_bridge",
+        executable="parameter_bridge",
+        arguments=[
+            # Clock (IGN -> ROS 2)
+            "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
+            # Odom (IGN -> ROS 2)
+            "/model/bluerov2_heavy/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry",
+        ],
+        output="screen",
+        condition=IfCondition(use_sim),
+    )
+
+    ros_gz_sim_spawn = Node(
+        package="ros_gz_sim",
+        executable="create",
+        arguments=[
+            "-name",
+            "rrbot",
+            "-topic",
+            "robot_description",
+        ],
+        output="screen",
+    )
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -349,6 +389,9 @@ def generate_launch_description() -> LaunchDescription:
     nodes = [
         control_node,
         robot_state_pub_node,
+        mavros,
+        ros_gz_bridge,
+        ros_gz_sim_spawn,
         delay_joint_state_broadcaster_spawner_after_control_node,
         delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawners_after_joint_state_broadcaster_spawner,
@@ -393,30 +436,98 @@ def generate_launch_description() -> LaunchDescription:
                 )
             }.items(),
         ),
-        #     IncludeLaunchDescription(
-        #         PythonLaunchDescriptionSource(
-        #             PathJoinSubstitution(
-        #                 [
-        #                     FindPackageShare("blue_bringup"),
-        #                     "launch",
-        #                     "bluerov2_heavy.launch.py",
-        #                 ]
-        #             )
-        #         ),
-        #         launch_arguments={
-        #             "description_package": "angler_description",
-        #             "controllers_file": controllers_file,
-        #             "localization_file": localization_file,
-        #             "mavros_file": mavros_file,
-        #             "manager_file": manager_file,
-        #             "controller": base_controller,
-        #             "localization_source": localization_source,
-        #             "use_camera": use_camera,
-        #             "use_mocap": use_mocap,
-        #             "ardusub_params_file": ardusub_params_file,
-        #         }.items(),
-        #     ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("blue_manager"), "manager.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [FindPackageShare(description_package), "config", manager_file]
+                )
+            }.items(),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("blue_control"), "launch", "control.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [FindPackageShare(description_package), "config", controllers_file]
+                ),
+                "controller": base_controller,
+            }.items(),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("blue_localization"), "localization.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "config_filepath": PathJoinSubstitution(
+                    [FindPackageShare(description_package), "config", localization_file]
+                ),
+                "localization_source": localization_source,
+                "use_mocap": use_mocap,
+                "use_camera": use_camera,
+            }.items(),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("ros_gz_sim"), "launch", "gz_sim.launch.py"]
+                )
+            ),
+            launch_arguments={"gz_args": "-r empty.sdf"}.items(),
+        ),
     ]
 
-    return LaunchDescription(args + nodes + includes)
-    # return LaunchDescription(args + includes)
+    processes = [
+        ExecuteProcess(
+            cmd=[
+                "gz",
+                "sim",
+                "-v",
+                "3",
+                "-r",
+                PathJoinSubstitution(
+                    [
+                        FindPackageShare(description_package),
+                        "gazebo",
+                        "worlds",
+                        gazebo_world_file,
+                    ]
+                ),
+            ],
+            output="screen",
+            condition=IfCondition(use_sim),
+        ),
+        ExecuteProcess(
+            cmd=[
+                "ardusub",
+                "-S",
+                "-w",
+                "-M",
+                "JSON",
+                "--defaults",
+                PathJoinSubstitution(
+                    [
+                        FindPackageShare(description_package),
+                        "ardusub",
+                        ardusub_params_file,
+                    ]
+                ),
+                "-I0",
+                "--home",
+                "44.65870,-124.06556,0.0,270.0",  # my not-so-secret surf spot
+            ],
+            output="screen",
+            condition=IfCondition(use_sim),
+        ),
+    ]
+
+    return LaunchDescription(args + nodes + includes + processes)

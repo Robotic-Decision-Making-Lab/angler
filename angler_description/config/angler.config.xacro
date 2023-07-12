@@ -7,7 +7,7 @@
   <xacro:arg name="use_sim" default="false" />
   <xacro:arg name="serial_port" default="" />
   <xacro:arg name="state_update_frequency" default="250" />
-  <xacro:arg name="controllers_file" default="alpha_controllers.yaml" />
+  <xacro:arg name="controllers_file" default="angler_controllers.yaml" />
   <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
   <xacro:arg name="namespace" default="" />
 
@@ -23,8 +23,8 @@
   <xacro:bluerov2_heavy_modified_urdf prefix="$(arg prefix)" />
 
   <xacro:if value="$(arg use_sim)">
-    <xacro:angler_gazebo prefix="$(arg prefix)" controllers_file="$(arg controllers_file)"
-      namespace="$(arg namespace)" />
+    <xacro:angler_gazebo prefix="$(arg prefix)" namespace="$(arg namespace)"
+      controllers_file="$(arg controllers_file)" />
   </xacro:if>
 
   <xacro:alpha_system

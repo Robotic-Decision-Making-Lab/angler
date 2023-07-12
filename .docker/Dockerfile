@@ -1,3 +1,6 @@
+##############################################
+# ci: Install core dependencies needed for CI
+##############################################
 ARG ROS_DISTRO=rolling
 FROM ros:$ROS_DISTRO-ros-base as ci
 
@@ -84,6 +87,9 @@ RUN wget https://raw.githubusercontent.com/mavlink/mavros/ros2/mavros/scripts/in
 USER root
 ENV USER=root
 
+#################################################################
+# sim: install Gazebo and the tools needed for Gazebo simulation
+#################################################################
 FROM ci as sim
 
 # Install Gazebo Garden: https://gazebosim.org/docs/garden/install_ubuntu
@@ -140,26 +146,29 @@ RUN [ "/bin/bash" , "-c" , " \
     && cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     && make -j4" ]
 
-# Configure the ardupilot_gazebo environment variables
-RUN echo 'export GZ_SIM_SYSTEM_PLUGIN_PATH=$HOME/ardupilot_gazebo/build:${GZ_SIM_SYSTEM_PLUGIN_PATH}' >> /home/$USERNAME/.bashrc \
-    && echo 'export GZ_SIM_RESOURCE_PATH=$HOME/ardupilot_gazebo/models:$HOME/ardupilot_gazebo/worlds:${GZ_SIM_RESOURCE_PATH}' >> /home/$USERNAME/.bashrc
-
 # Switch back to the root user
 USER root
 ENV USER=root
 
-FROM sim as source
+# Extend the ros_entrypoint to source the simulation environment
+COPY .docker/sim_entrypoint.sh .
+RUN sed -i '/source "\/opt\/ros\/\$ROS_DISTRO\/setup\.sh" --/a source $HOME/sim_entrypoint.sh' /ros_entrypoint.sh
+
+##################################################
+# deps: Install all external project dependencies
+##################################################
+FROM sim as deps
 
 ENV GZ_VERSION=garden
-ENV ROS_UNDERLAY /root/ws_angler/install
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler/install
 ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR $ROS_UNDERLAY/..
+WORKDIR $USER_WORKSPACE/..
 
-COPY . src/angler
+COPY angler.repos src/
 
 RUN apt-get -q update \
     && apt-get -q -y upgrade \
-    && vcs import src < src/angler/angler.repos \
+    && vcs import src < src/angler.repos \
     && rosdep update \
     && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
     && apt-get autoremove -y \
@@ -168,13 +177,14 @@ RUN apt-get -q update \
 
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
     && colcon build \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    --ament-cmake-args -DCMAKE_BUILD_TYPE=Release \
-    --event-handlers desktop_notification- status- \
-    # Update /ros_entrypoint.sh to source the new workspace
-    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$ROS_UNDERLAY/setup.sh#g" /ros_entrypoint.sh
+    # Update /ros_entrypoint.sh to source the workspace
+    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh \
+    && rm -rf src
 
-FROM sim as develop
+####################################################
+# develop: Setup the image for development purposes
+####################################################
+FROM deps as develop
 
 ENV GZ_VERSION=garden
 ENV ROS_UNDERLAY /root/ws_angler/install
@@ -215,5 +225,4 @@ RUN python3 -m pip install \
 
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    && echo "source ${WORKSPACE}/env.sh" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc

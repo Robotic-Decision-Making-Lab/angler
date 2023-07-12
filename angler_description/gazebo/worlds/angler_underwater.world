@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <sdf version="1.6">
-  <world name="bluerov2_heavy_underwater">
+  <world name="angler_underwater">
 
     <!-- Base Gazebo plugins -->
     <plugin
@@ -16,15 +16,9 @@
       name="gz::sim::systems::SceneBroadcaster">
     </plugin>
 
-    <plugin filename="libgazebo_ros_imu_sensor.so" name="gz::sim::systems::Imu">
-      <topicName>imu</topicName>
-      <bodyName>imu_link</bodyName>
-      <updateRateHZ>1000.0</updateRateHZ>
-      <gaussianNoise>0.0</gaussianNoise>
-      <xyzOffset>0 0 0</xyzOffset>
-      <rpyOffset>0 0 0</rpyOffset>
-      <frameName>imu_link</frameName>
-      <initialOrientationAsReference>false</initialOrientationAsReference>
+    <!-- IMU plugin manages all IMU sensors -->
+    <plugin filename="libgz-sim-imu-system.so"
+      name="gz::sim::systems::Imu">
     </plugin>
 
     <!-- Buoyancy plugin manages buoyancy for all models -->
@@ -40,7 +34,7 @@
         </density_change>
       </graded_buoyancy>
       <!-- Enable by model name -->
-      <enable>bluerov2_heavy</enable>
+      <enable>bluerov2_heavy_modified</enable>
     </plugin>
 
     <include>

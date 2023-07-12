@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="ardupilot" params="prefix namespace">
+
+    <!-- Ardupilot -->
+    <gazebo>
+      <plugin name="ArduPilotPlugin" filename="libArduPilotPlugin.so">
+        <!-- Port settings -->
+        <fdm_addr>127.0.0.1</fdm_addr>
+        <fdm_port_in>9002</fdm_port_in>
+        <connectionTimeoutMaxCount>5</connectionTimeoutMaxCount>
+        <lock_step>1</lock_step>
+
+        <!-- Transform from the Gazebo body frame (x-forward, y-left, z-up)
+           to the ArduPilot body frame (x-forward, y-right, z-down) -->
+        <modelXYZToAirplaneXForwardZDown>0 0 0 3.142 0 0</modelXYZToAirplaneXForwardZDown>
+
+        <!-- Transform from the Gazebo world frame (ENU)
+           to the ArduPilot world frame (NED) -->
+        <gazeboXYZToNED>0 0 0 3.142 0 1.571</gazeboXYZToNED>
+
+        <!-- Sensors -->
+        <imuName>imu_sensor</imuName>
+
+        <!-- Thrusters -->
+        <control channel="0">
+          <jointName>${prefix}thruster1_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster1_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="1">
+          <jointName>${prefix}thruster2_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster2_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="2">
+          <jointName>${prefix}thruster3_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster3_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="3">
+          <jointName>${prefix}thruster4_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster4_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="4">
+          <jointName>${prefix}thruster5_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster5_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="5">
+          <jointName>${prefix}thruster6_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster6_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="6">
+          <jointName>${prefix}thruster7_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster7_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="7">
+          <jointName>${prefix}thruster8_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/${namespace}/joint/${prefix}thruster8_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+
+      </plugin>
+    </gazebo>
+
+  </xacro:macro>
+
+</robot>
