@@ -7,7 +7,13 @@
     <!-- ros2_control -->
     <gazebo>
       <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-        <parameters>$(find angler_description)/config/$(arg controllers_file)</parameters>
+        <xacro:if value="${namespace != '/'}">
+          <ros>
+            <namespace>/${namespace[:-1]}</namespace>
+          </ros>
+          <robot_param_node>/${namespace}robot_state_publisher</robot_param_node>
+        </xacro:if>
+        <parameters>$(find angler_description)/config/${controllers_file}</parameters>
       </plugin>
     </gazebo>
 

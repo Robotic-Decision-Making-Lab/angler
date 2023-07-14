@@ -29,7 +29,7 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  DIRECTORY gazebo config ardusub meshes urdf rviz launch
+  DIRECTORY gazebo config ardusub meshes urdf rviz
   DESTINATION share/${PROJECT_NAME}
 )
 

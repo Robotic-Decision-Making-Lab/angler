@@ -27,7 +27,9 @@
     state_update_frequency="$(arg state_update_frequency)"
     initial_positions_file="$(arg initial_positions_file)" />
 
-  <xacro:angler_gazebo prefix="$(arg prefix)" namespace="$(arg namespace)"
-    controllers_file="$(arg controllers_file)" />
+  <xacro:if value="$(arg use_sim)">
+    <xacro:angler_gazebo prefix="$(arg prefix)" namespace="$(arg namespace)"
+      controllers_file="$(arg controllers_file)" />
+  </xacro:if>
 
 </robot>

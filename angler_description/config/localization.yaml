@@ -15,4 +15,4 @@ qualisys_localizer:
 
 gazebo_localizer:
   ros__parameters:
-    gazebo_odom_topic: "/model/bluerov2_heavy/odometry"
+    gazebo_odom_topic: "/model/angler/odometry"
