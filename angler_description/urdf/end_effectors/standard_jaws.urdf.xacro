@@ -13,14 +13,20 @@
       <visual>
         <geometry>
           <mesh
-            filename="package://alpha_description/meshes/end_effectors/RS1-124.stl" />
+            filename="file://$(find alpha_description)/meshes/end_effectors/RS1-124.stl" />
         </geometry>
         <material name="${prefix}black" />
       </visual>
       <inertial>
-        <mass value="2e-06" />
-        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
-          izz="1.1e-09" />
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
       </inertial>
     </link>
 
@@ -28,21 +34,21 @@
       <visual>
         <geometry>
           <mesh
-            filename="package://alpha_description/meshes/end_effectors/RS1-130.stl" />
+            filename="file://$(find alpha_description)/meshes/end_effectors/RS1-130.stl" />
         </geometry>
         <material name="${prefix}black" />
         <origin xyz="0 0 0" rpy="0 0 0" />
       </visual>
-      <collision>
-        <geometry>
-          <box size="0.012 0.03 0.09" />
-        </geometry>
-        <origin xyz="0.0 -0.008 0.045" rpy="0 0 0" />
-      </collision>
       <inertial>
-        <mass value="2e-06" />
-        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
-          izz="1.1e-09" />
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
       </inertial>
     </link>
 
@@ -50,21 +56,21 @@
       <visual>
         <geometry>
           <mesh
-            filename="package://alpha_description/meshes/end_effectors/RS1-139.stl" />
+            filename="file://$(find alpha_description)/meshes/end_effectors/RS1-139.stl" />
         </geometry>
         <material name="${prefix}black" />
         <origin xyz="0 0 0" rpy="0 0 0" />
       </visual>
-      <collision>
-        <geometry>
-          <box size="0.012 0.03 0.09" />
-        </geometry>
-        <origin xyz="0.0 0.008 0.045" rpy="0 0 0" />
-      </collision>
       <inertial>
-        <mass value="2e-06" />
-        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
-          izz="1.1e-09" />
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
       </inertial>
     </link>
 

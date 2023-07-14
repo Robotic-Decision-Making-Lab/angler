@@ -18,10 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import os
-
-import xacro
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -30,14 +26,9 @@ from launch.actions import (
     RegisterEventHandler,
 )
 from launch.conditions import IfCondition
-from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import (
-    Command,
-    FindExecutable,
-    LaunchConfiguration,
-    PathJoinSubstitution,
-)
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -48,7 +39,6 @@ def generate_launch_description() -> LaunchDescription:
     Returns:
         The Angler ROS 2 launch description.
     """
-    # Declare the launch arguments
     args = [
         DeclareLaunchArgument(
             "description_package",
@@ -60,11 +50,6 @@ def generate_launch_description() -> LaunchDescription:
             ),
         ),
         DeclareLaunchArgument(
-            "description_file",
-            default_value="angler.config.xacro",
-            description="The URDF/XACRO description file with the Alpha.",
-        ),
-        DeclareLaunchArgument(
             "planning_file",
             default_value="planning.yaml",
             description="The Angler planning configuration file.",
@@ -73,11 +58,6 @@ def generate_launch_description() -> LaunchDescription:
             "mux_file",
             default_value="mux.yaml",
             description="The Angler mux + demux configuration file.",
-        ),
-        DeclareLaunchArgument(
-            "controllers_file",
-            default_value="angler_controllers.yaml",
-            description="The BlueROV2 Heavy controller configuration file.",
         ),
         DeclareLaunchArgument(
             "localization_file",
@@ -95,6 +75,30 @@ def generate_launch_description() -> LaunchDescription:
             description="The MAVROS configuration file.",
         ),
         DeclareLaunchArgument(
+            "gazebo_world_file",
+            default_value="angler_underwater.world",
+            description="The world configuration to load if using Gazebo.",
+        ),
+        DeclareLaunchArgument(
+            "ardusub_params_file",
+            default_value="angler.parm",
+            description=(
+                "The ArduSub parameters that the BlueROV2 should use if running in"
+                " simulation."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "controllers_file",
+            default_value="angler_controllers.yaml",
+            description="The BlueROV2 Heavy controller configuration file.",
+        ),
+        DeclareLaunchArgument(
+            "manipulator_controller",
+            default_value="forward_velocity_controller",
+            description="The ros2_control controller to use with the manipulator(s).",
+            choices=["forward_velocity_controller", "forward_position_controller"],
+        ),
+        DeclareLaunchArgument(
             "base_controller",
             default_value="ismc",
             description=(
@@ -102,12 +106,6 @@ def generate_launch_description() -> LaunchDescription:
                 " controller's executable."
             ),
             choices=["ismc"],
-        ),
-        DeclareLaunchArgument(
-            "manipulator_controller",
-            default_value="forward_velocity_controller",
-            description="The ros2_control controller to use with the manipulator(s).",
-            choices=["forward_velocity_controller"],
         ),
         DeclareLaunchArgument(
             "localization_source",
@@ -132,273 +130,101 @@ def generate_launch_description() -> LaunchDescription:
             ),
         ),
         DeclareLaunchArgument(
+            "use_rviz", default_value="true", description="Launch RViz2."
+        ),
+        DeclareLaunchArgument(
             "use_sim",
             default_value="false",
             description="Launch the Gazebo + ArduSub simulator.",
         ),
-        DeclareLaunchArgument(
-            "use_rviz", default_value="true", description="Launch RViz2."
-        ),
-        DeclareLaunchArgument(
-            "gazebo_world_file",
-            default_value="angler_underwater.world",
-            description="The world configuration to load if using Gazebo.",
-        ),
-        DeclareLaunchArgument(
-            "ardusub_params_file",
-            default_value="angler.parm",
-            description=(
-                "The ArduSub parameters that the BlueROV2 should use if running in"
-                " simulation."
-            ),
-        ),
-        DeclareLaunchArgument(
-            "manipulator_serial_port",
-            default_value="''",
-            description=(
-                "The serial port that the Alpha 5 is available at (e.g., /dev/ttyUSB0)."
-            ),
-        ),
-        DeclareLaunchArgument(
-            "initial_positions_file",
-            default_value="initial_positions.yaml",
-            description=(
-                "The configuration file that defines the initial positions used for"
-                " the Reach Alpha 5 in simulation."
-            ),
-        ),
-        DeclareLaunchArgument(
-            "prefix",
-            default_value="",
-            description=(
-                "The prefix of the BlueROV2. This is useful for multi-robot setups."
-                " Expected format '<prefix>/'."
-            ),
-        ),
-        DeclareLaunchArgument(
-            "namespace",
-            default_value="",
-            description=(
-                "The namespace of the launched nodes. This is useful for multi-robot"
-                " setups. If the namespace is changed, then the namespace in the"
-                " controller configuration must be updated. Expected format '<ns>/'."
-            ),
-        ),
-        DeclareLaunchArgument(
-            "use_fake_hardware",
-            default_value="true",
-            description=(
-                "Start the Reach Alpha 5 driver using fake hardware mirroring command"
-                " to its states. If this is set to 'false', the Alpha 5 manipulator"
-                " serial port should be specified."
-            ),
-        ),
-        DeclareLaunchArgument(
-            "rviz_config",
-            default_value="view_angler.rviz",
-            description="The RViz2 configuration file.",
-        ),
     ]
 
     description_package = LaunchConfiguration("description_package")
-    description_file = LaunchConfiguration("description_file")
-    planning_file = LaunchConfiguration("planning_file")
-    mux_file = LaunchConfiguration("mux_file")
-    controllers_file = LaunchConfiguration("controllers_file")
-    localization_file = LaunchConfiguration("localization_file")
-    manager_file = LaunchConfiguration("manager_file")
-    mavros_file = LaunchConfiguration("mavros_file")
-    base_controller = LaunchConfiguration("base_controller")
     manipulator_controller = LaunchConfiguration("manipulator_controller")
-    localization_source = LaunchConfiguration("localization_source")
-    use_camera = LaunchConfiguration("use_camera")
-    use_mocap = LaunchConfiguration("use_mocap")
-    use_sim = LaunchConfiguration("use_sim")
     use_rviz = LaunchConfiguration("use_rviz")
-    gazebo_world_file = LaunchConfiguration("gazebo_world_file")
-    ardusub_params_file = LaunchConfiguration("ardusub_params_file")
-    manipulator_serial_port = LaunchConfiguration("manipulator_serial_port")
-    initial_positions_file = LaunchConfiguration("initial_positions_file")
-    prefix = LaunchConfiguration("prefix")
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware")
-    namespace = LaunchConfiguration("namespace")
-    rviz_config = LaunchConfiguration("rviz_config")
+    controllers_file = LaunchConfiguration("controllers_file")
 
-    # Generate the robot description using xacro
-    robot_description = {
-        "robot_description": Command(
-            [
-                PathJoinSubstitution([FindExecutable(name="xacro")]),
-                " ",
+    load_joint_state_broadcaster = ExecuteProcess(
+        cmd=[
+            "ros2",
+            "control",
+            "load_controller",
+            "--set-state",
+            "active",
+            "joint_state_broadcaster",
+        ],
+        output="screen",
+    )
+
+    load_manipulator_controller = ExecuteProcess(
+        cmd=[
+            "ros2",
+            "control",
+            "load_controller",
+            "--set-state",
+            "active",
+            manipulator_controller,
+        ],
+        output="screen",
+    )
+
+    nodes = [
+        gz_spawner,
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=gz_spawner,
+                on_exit=[load_joint_state_broadcaster],
+            )
+        ),
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=load_joint_state_broadcaster,
+                on_exit=[load_manipulator_controller],
+            )
+        ),
+        Node(
+            package="mavros",
+            executable="mavros_node",
+            output="screen",
+            parameters=[
                 PathJoinSubstitution(
                     [
                         FindPackageShare(description_package),
                         "config",
-                        description_file,
+                        LaunchConfiguration("mavros_file"),
                     ]
-                ),
-                " ",
-                "prefix:=",
-                prefix,
-                " ",
-                "use_fake_hardware:=",
-                use_fake_hardware,
-                " ",
-                "use_sim:=",
-                use_sim,
-                " ",
-                "serial_port:=",
-                manipulator_serial_port,
-                " ",
-                "controllers_file:=",
-                controllers_file,
-                " ",
-                "initial_positions_file:=",
-                initial_positions_file,
-                " ",
-                "namespace:=",
-                namespace,
-            ]
-        )
-    }
-
-    # Declare ROS 2 nodes
-    control_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        output="both",
-        namespace=namespace,
-        parameters=[
-            robot_description,
-            PathJoinSubstitution(
-                [
-                    FindPackageShare(description_package),
-                    "config",
-                    controllers_file,
-                ]
-            ),
-        ],
-    )
-
-    robot_state_pub_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        name="robot_state_publisher",
-        output="both",
-        namespace=namespace,
-        parameters=[robot_description],
-    )
-
-    joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "joint_state_broadcaster",
-            "--controller-manager",
-            [namespace, "controller_manager"],
-        ],
-    )
-
-    robot_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            manipulator_controller,
-            "--controller-manager",
-            [namespace, "controller_manager"],
-        ],
-    )
-
-    mavros = Node(
-        package="mavros",
-        executable="mavros_node",
-        output="screen",
-        parameters=[
-            PathJoinSubstitution(
-                [FindPackageShare(description_package), "config", mavros_file]
-            )
-        ],
-    )
-
-    ros_gz_bridge = Node(
-        package="ros_gz_bridge",
-        executable="parameter_bridge",
-        arguments=[
-            # Clock (IGN -> ROS 2)
-            "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
-            # Odom (IGN -> ROS 2)
-            "/model/bluerov2_heavy/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry",
-        ],
-        output="screen",
-        condition=IfCondition(use_sim),
-    )
-
-    ros_gz_sim_spawn = Node(
-        package="ros_gz_sim",
-        executable="create",
-        arguments=[
-            "-name",
-            "rrbot",
-            "-topic",
-            "robot_description",
-        ],
-        output="screen",
-    )
-
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        arguments=[
-            "-d",
-            PathJoinSubstitution(
-                [FindPackageShare(description_package), "rviz", rviz_config]
-            ),
-        ],
-        parameters=[robot_description],
-        condition=IfCondition(use_rviz),
-    )
-
-    # Delay `joint_state_broadcaster` after control_node
-    delay_joint_state_broadcaster_spawner_after_control_node = RegisterEventHandler(
-        event_handler=OnProcessStart(
-            target_action=control_node,
-            on_start=[joint_state_broadcaster_spawner],
+                )
+            ],
         ),
-    )
-
-    # Delay rviz start after `joint_state_broadcaster`
-    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner,
-            on_exit=[rviz_node],
-        ),
-        condition=IfCondition(use_rviz),
-    )
-
-    # Delay start of robot_controller after `joint_state_broadcaster`
-    delay_robot_controller_spawners_after_joint_state_broadcaster_spawner = (
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=joint_state_broadcaster_spawner,
-                on_exit=[robot_controller_spawner],
-            ),
-        )
-    )
-
-    nodes = [
-        control_node,
-        robot_state_pub_node,
-        mavros,
-        ros_gz_bridge,
-        ros_gz_sim_spawn,
-        delay_joint_state_broadcaster_spawner_after_control_node,
-        delay_rviz_after_joint_state_broadcaster_spawner,
-        delay_robot_controller_spawners_after_joint_state_broadcaster_spawner,
     ]
 
-    # Declare additional launch files to run
     includes = [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                [
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("ros_gz_sim"),
+                            "launch",
+                            "gz_sim.launch.py",
+                        ]
+                    )
+                ]
+            ),
+            launch_arguments=[
+                (
+                    "gz_args",
+                    [
+                        "-v",
+                        "4",
+                        " ",
+                        "-r",
+                        " ",
+                        LaunchConfiguration("gazebo_world_file"),
+                    ],
+                )
+            ],
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution(
@@ -413,6 +239,21 @@ def generate_launch_description() -> LaunchDescription:
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 PathJoinSubstitution(
+                    [
+                        FindPackageShare(description_package),
+                        "launch",
+                        "description.launch.py",
+                    ]
+                )
+            ),
+            launch_arguments={
+                "use_rviz": use_rviz,
+                "controllers_file": controllers_file,
+            }.items(),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
                     [FindPackageShare("angler_planning"), "planning.launch.py"]
                 )
             ),
@@ -421,7 +262,7 @@ def generate_launch_description() -> LaunchDescription:
                     [
                         FindPackageShare(description_package),
                         "config",
-                        planning_file,
+                        LaunchConfiguration("planning_file"),
                     ]
                 )
             }.items(),
@@ -432,7 +273,11 @@ def generate_launch_description() -> LaunchDescription:
             ),
             launch_arguments={
                 "config_filepath": PathJoinSubstitution(
-                    [FindPackageShare(description_package), "config", mux_file]
+                    [
+                        FindPackageShare(description_package),
+                        "config",
+                        LaunchConfiguration("mux_file"),
+                    ]
                 )
             }.items(),
         ),
@@ -444,7 +289,11 @@ def generate_launch_description() -> LaunchDescription:
             ),
             launch_arguments={
                 "config_filepath": PathJoinSubstitution(
-                    [FindPackageShare(description_package), "config", manager_file]
+                    [
+                        FindPackageShare(description_package),
+                        "config",
+                        LaunchConfiguration("manager_file"),
+                    ]
                 )
             }.items(),
         ),
@@ -456,9 +305,13 @@ def generate_launch_description() -> LaunchDescription:
             ),
             launch_arguments={
                 "config_filepath": PathJoinSubstitution(
-                    [FindPackageShare(description_package), "config", controllers_file]
+                    [
+                        FindPackageShare(description_package),
+                        "config",
+                        controllers_file,
+                    ]
                 ),
-                "controller": base_controller,
+                "controller": LaunchConfiguration("base_controller"),
             }.items(),
         ),
         IncludeLaunchDescription(
@@ -469,65 +322,17 @@ def generate_launch_description() -> LaunchDescription:
             ),
             launch_arguments={
                 "config_filepath": PathJoinSubstitution(
-                    [FindPackageShare(description_package), "config", localization_file]
+                    [
+                        FindPackageShare(description_package),
+                        "config",
+                        LaunchConfiguration("localization_file"),
+                    ]
                 ),
-                "localization_source": localization_source,
-                "use_mocap": use_mocap,
-                "use_camera": use_camera,
+                "localization_source": LaunchConfiguration("localization_source"),
+                "use_mocap": LaunchConfiguration("use_mocap"),
+                "use_camera": LaunchConfiguration("use_camera"),
             }.items(),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [FindPackageShare("ros_gz_sim"), "launch", "gz_sim.launch.py"]
-                )
-            ),
-            launch_arguments={"gz_args": "-r empty.sdf"}.items(),
-        ),
     ]
 
-    processes = [
-        ExecuteProcess(
-            cmd=[
-                "gz",
-                "sim",
-                "-v",
-                "3",
-                "-r",
-                PathJoinSubstitution(
-                    [
-                        FindPackageShare(description_package),
-                        "gazebo",
-                        "worlds",
-                        gazebo_world_file,
-                    ]
-                ),
-            ],
-            output="screen",
-            condition=IfCondition(use_sim),
-        ),
-        ExecuteProcess(
-            cmd=[
-                "ardusub",
-                "-S",
-                "-w",
-                "-M",
-                "JSON",
-                "--defaults",
-                PathJoinSubstitution(
-                    [
-                        FindPackageShare(description_package),
-                        "ardusub",
-                        ardusub_params_file,
-                    ]
-                ),
-                "-I0",
-                "--home",
-                "44.65870,-124.06556,0.0,270.0",  # my not-so-secret surf spot
-            ],
-            output="screen",
-            condition=IfCondition(use_sim),
-        ),
-    ]
-
-    return LaunchDescription(args + nodes + includes + processes)
+    return LaunchDescription(args + nodes + includes)

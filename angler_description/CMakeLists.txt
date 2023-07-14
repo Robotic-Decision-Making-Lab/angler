@@ -29,7 +29,7 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  DIRECTORY gazebo config ardusub meshes ros2_control urdf rviz
+  DIRECTORY gazebo config ardusub meshes urdf rviz launch
   DESTINATION share/${PROJECT_NAME}
 )
 

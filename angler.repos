@@ -22,5 +22,5 @@ repositories:
 
   gz_ros2_control:
     type: git
-    url: https://github.com/ros-controls/gz_ros2_control.git
-    version: master
+    url: https://github.com/evan-palmer/gz_ros2_control.git
+    version: patch-rolling-garden

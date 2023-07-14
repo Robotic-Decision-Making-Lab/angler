@@ -2,30 +2,15 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:macro name="alpha_system"
-    params="name serial_port state_update_frequency initial_positions_file use_sim:=^|false use_fake_hardware:=^true">
+    params="name serial_port state_update_frequency initial_positions_file use_fake_hardware:=^true">
 
     <xacro:property name="initial_positions"
-      value="${xacro.load_yaml(initial_positions_file)['initial_positions']}" />
+      value="${xacro.load_yaml('$(find angler_description)/config/$(arg initial_positions_file)')['initial_positions']}" />
 
     <ros2_control name="${name}" type="system">
-      <xacro:if value="$(arg use_sim)">
-        <hardware>
-          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-        </hardware>
-      </xacro:if>
-      <xacro:unless
-        value="$(arg use_sim)">
-        <hardware>
-          <xacro:if value="${use_fake_hardware}">
-            <plugin>mock_components/GenericSystem</plugin>
-          </xacro:if>
-          <xacro:unless value="${use_fake_hardware}">
-            <plugin>alpha_hardware/AlphaHardware</plugin>
-            <param name="serial_port">${serial_port}</param>
-            <param name="state_update_frequency">${state_update_frequency}</param>
-          </xacro:unless>
-        </hardware>
-      </xacro:unless>
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
       <joint name="alpha_axis_a">
         <command_interface name="position">
           <param name="min">0</param>
@@ -36,7 +21,7 @@
           <param name="max">2.5</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['alpha_axis_a']}</param>
+          <param name="initial_value">${initial_positions['axis_a']}</param>
         </state_interface>
         <state_interface
           name="velocity">
@@ -53,10 +38,7 @@
           <param name="max">1.0</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['alpha_axis_b']}</param>
-        </state_interface>
-        <state_interface name="velocity">
-          <param name="initial_value">0.0</param>
+          <param name="initial_value">${initial_positions['axis_b']}</param>
         </state_interface>
       </joint>
       <joint name="alpha_axis_c">
@@ -69,10 +51,7 @@
           <param name="max">1.0</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['alpha_axis_c']}</param>
-        </state_interface>
-        <state_interface name="velocity">
-          <param name="initial_value">0.0</param>
+          <param name="initial_value">${initial_positions['axis_c']}</param>
         </state_interface>
       </joint>
       <joint name="alpha_axis_d">
@@ -85,10 +64,7 @@
           <param name="max">1.0</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['alpha_axis_d']}</param>
-        </state_interface>
-        <state_interface name="velocity">
-          <param name="initial_value">0.0</param>
+          <param name="initial_value">${initial_positions['axis_d']}</param>
         </state_interface>
       </joint>
       <joint name="alpha_axis_e">
@@ -101,10 +77,7 @@
           <param name="max">0.5</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['alpha_axis_e']}</param>
-        </state_interface>
-        <state_interface name="velocity">
-          <param name="initial_value">0.0</param>
+          <param name="initial_value">${initial_positions['axis_e']}</param>
         </state_interface>
       </joint>
     </ros2_control>

@@ -34,7 +34,7 @@
         </density_change>
       </graded_buoyancy>
       <!-- Enable by model name -->
-      <enable>bluerov2_heavy_modified</enable>
+      <enable>angler</enable>
     </plugin>
 
     <include>

@@ -22,7 +22,7 @@
       <visual>
         <geometry>
           <mesh
-            filename="package://angler_description/meshes/bluerov2/bluerov2_heavy_modified.dae"
+            filename="package://angler_description/meshes/bluerov2_heavy_modified.dae"
             scale="0.025 0.025 0.025"
           />
         </geometry>
@@ -50,7 +50,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_ccw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_ccw_prop.dae" />
         </geometry>
         <origin rpy="-1.571 0 0" xyz="0 0 0" />
       </visual>
@@ -70,7 +70,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_ccw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_ccw_prop.dae" />
         </geometry>
         <origin rpy="-1.571 0 0" xyz="0 0 0" />
       </visual>
@@ -90,7 +90,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_cw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_cw_prop.dae" />
         </geometry>
         <origin rpy="1.571 0 0" xyz="0 0 0" />
       </visual>
@@ -110,7 +110,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_cw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_cw_prop.dae" />
         </geometry>
         <origin rpy="1.571 0 0" xyz="0 0 0" />
       </visual>
@@ -130,7 +130,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_ccw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_ccw_prop.dae" />
         </geometry>
         <origin rpy="-1.571 0 1.571" xyz="0 0 0" />
       </visual>
@@ -150,7 +150,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_cw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_cw_prop.dae" />
         </geometry>
         <origin rpy="1.571 0 1.571" xyz="0 0 0" />
       </visual>
@@ -170,7 +170,7 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_cw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_cw_prop.dae" />
         </geometry>
         <origin rpy="1.571 0 1.571" xyz="0 0 0" />
       </visual>
@@ -190,17 +190,29 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="package://angler_description/meshes/bluerov2/t200_ccw_prop.dae" />
+          <mesh filename="package://angler_description/meshes/t200_ccw_prop.dae" />
         </geometry>
         <origin rpy="-1.571 0 1.571" xyz="0 0 0" />
       </visual>
     </link>
 
     <link name="${prefix}manipulator_mount_link">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+      </visual>
       <inertial>
-        <mass value="2e-06" />
-        <inertia ixx="1.1e-09" ixy="0" ixz="0" iyy="1.1e-09" iyz="0"
-          izz="1.1e-09" />
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
       </inertial>
     </link>
 
