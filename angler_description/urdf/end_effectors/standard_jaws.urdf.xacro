@@ -17,15 +17,22 @@
         </geometry>
         <material name="${prefix}black" />
       </visual>
+      <collision>
+        <geometry>
+          <cylinder length="0.00975" radius="0.020" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0 0.004875" />
+      </collision>
       <inertial>
-        <mass value="0.0001" />
+        <mass value="0.023" />
+        <origin xyz="0 0 0.004875" />
         <inertia
-          ixx="0.0001"
+          ixx="0.000002422"
           ixy="0"
           ixz="0"
-          iyy="0.0001"
+          iyy="0.000002422"
           iyz="0"
-          izz="0.0001"
+          izz="0.0000046"
         />
       </inertial>
     </link>
@@ -39,15 +46,22 @@
         <material name="${prefix}black" />
         <origin xyz="0 0 0" rpy="0 0 0" />
       </visual>
+      <collision>
+        <geometry>
+          <box size="0.012 0.03 0.09" />
+        </geometry>
+        <origin xyz="0.0 -0.008 0.045" rpy="0 0 0" />
+      </collision>
       <inertial>
-        <mass value="0.0001" />
+        <mass value="0.055" />
+        <origin xyz="0.0 -0.008 0.045" rpy="0 0 0" />
         <inertia
-          ixx="0.0001"
+          ixx="0.00004125"
           ixy="0"
           ixz="0"
-          iyy="0.0001"
+          iyy="0.000037785"
           iyz="0"
-          izz="0.0001"
+          izz="0.000004785"
         />
       </inertial>
     </link>
@@ -61,15 +75,22 @@
         <material name="${prefix}black" />
         <origin xyz="0 0 0" rpy="0 0 0" />
       </visual>
+      <collision>
+        <geometry>
+          <box size="0.012 0.03 0.09" />
+        </geometry>
+        <origin xyz="0.0 0.008 0.045" rpy="0 0 0" />
+      </collision>
       <inertial>
-        <mass value="0.0001" />
+        <mass value="0.055" />
+        <origin xyz="0.0 0.008 0.045" rpy="0 0 0" />
         <inertia
-          ixx="0.0001"
+          ixx="0.00004125"
           ixy="0"
           ixz="0"
-          iyy="0.0001"
+          iyy="0.000037785"
           iyz="0"
-          izz="0.0001"
+          izz="0.000004785"
         />
       </inertial>
     </link>

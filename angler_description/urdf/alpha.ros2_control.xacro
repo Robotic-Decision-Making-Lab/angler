@@ -38,10 +38,7 @@
         <state_interface name="position">
           <param name="initial_value">${initial_positions['axis_a']}</param>
         </state_interface>
-        <state_interface
-          name="velocity">
-          <param name="initial_value">0.0</param>
-        </state_interface>
+        <state_interface name="velocity" />
       </joint>
       <joint name="alpha_axis_b">
         <command_interface name="position">
@@ -55,6 +52,7 @@
         <state_interface name="position">
           <param name="initial_value">${initial_positions['axis_b']}</param>
         </state_interface>
+        <state_interface name="velocity" />
       </joint>
       <joint name="alpha_axis_c">
         <command_interface name="position">
@@ -68,6 +66,7 @@
         <state_interface name="position">
           <param name="initial_value">${initial_positions['axis_c']}</param>
         </state_interface>
+        <state_interface name="velocity" />
       </joint>
       <joint name="alpha_axis_d">
         <command_interface name="position">
@@ -81,6 +80,7 @@
         <state_interface name="position">
           <param name="initial_value">${initial_positions['axis_d']}</param>
         </state_interface>
+        <state_interface name="velocity" />
       </joint>
       <joint name="alpha_axis_e">
         <command_interface name="position">
@@ -94,6 +94,7 @@
         <state_interface name="position">
           <param name="initial_value">${initial_positions['axis_e']}</param>
         </state_interface>
+        <state_interface name="velocity" />
       </joint>
     </ros2_control>
 

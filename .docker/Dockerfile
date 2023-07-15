@@ -152,7 +152,7 @@ ENV USER=root
 
 # Extend the ros_entrypoint to source the simulation environment
 COPY .docker/sim_entrypoint.sh .
-RUN sed -i '/source "\/opt\/ros\/\$ROS_DISTRO\/setup\.sh" --/a source $HOME/sim_entrypoint.sh' /ros_entrypoint.sh
+RUN sed -i '/source "\/opt\/ros\/$ROS_DISTRO\/setup\.bash" --/a source $HOME/sim_entrypoint.sh' /ros_entrypoint.sh
 
 ##################################################
 # deps: Install all external project dependencies
@@ -178,8 +178,7 @@ RUN apt-get -q update \
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
     && colcon build \
     # Update /ros_entrypoint.sh to source the workspace
-    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh \
-    && rm -rf src
+    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh
 
 ####################################################
 # develop: Setup the image for development purposes
@@ -226,3 +225,5 @@ RUN python3 -m pip install \
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
+
+ENTRYPOINT [ "/ros_entrypoint.sh" ]

@@ -106,7 +106,11 @@ def generate_launch_description() -> LaunchDescription:
             "manipulator_controller",
             default_value="forward_velocity_controller",
             description="The ros2_control controller to use with the manipulator(s).",
-            choices=["forward_velocity_controller", "forward_position_controller"],
+            choices=[
+                "forward_velocity_controller",
+                "forward_position_controller",
+                "feedback_joint_trajectory_controller",
+            ],
         ),
         DeclareLaunchArgument(
             "base_controller",
