@@ -21,7 +21,7 @@
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
-from trajectory_msgs.msg import JointTrajectoryPoint
+from std_msgs.msg import Float64MultiArray
 
 from angler_msgs.msg import UvmsCmd
 
@@ -82,7 +82,7 @@ class SingleManipulatorVelocityDemux(VelocityDemux):
 
         # Publishers
         self.manipulator_cmd_vel_pub = self.create_publisher(
-            JointTrajectoryPoint,
+            Float64MultiArray,
             self.get_parameter("manipulator_cmd_vel_topic")
             .get_parameter_value()
             .string_value,

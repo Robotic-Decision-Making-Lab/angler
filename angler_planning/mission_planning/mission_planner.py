@@ -115,19 +115,14 @@ class PrePlannedMissionPlanner(MissionPlanner):
         """
         super().__init__("preplanned_mission_planner")
 
-        self.declare_parameters(
-            "",
-            [
-                ("mission_name", ""),
-                (
-                    "library_path",
-                    os.path.join(
-                        get_package_share_directory("angler_planning"),
-                        "missions",
-                        "library",
-                    ),
-                ),
-            ],
+        self.declare_parameter("mission_name", "")
+        self.declare_parameter(
+            "library_path",
+            os.path.join(
+                get_package_share_directory("angler_planning"),
+                "missions",
+                "library",
+            ),
         )
 
         mission_name = (

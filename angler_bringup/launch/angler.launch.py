@@ -33,6 +33,7 @@ from launch.substitutions import (
     FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
+    PythonExpression,
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -109,7 +110,8 @@ def generate_launch_description() -> LaunchDescription:
             choices=[
                 "forward_velocity_controller",
                 "forward_position_controller",
-                "feedback_joint_trajectory_controller",
+                "feedback_joint_position_trajectory_controller",
+                "feedback_joint_velocity_trajectory_controller",
             ],
         ),
         DeclareLaunchArgument(
@@ -204,6 +206,8 @@ def generate_launch_description() -> LaunchDescription:
     controllers_file = LaunchConfiguration("controllers_file")
     use_rviz = LaunchConfiguration("use_rviz")
     namespace = LaunchConfiguration("namespace")
+    initial_positions_file = LaunchConfiguration("initial_positions_file")
+    manipulator_controller = LaunchConfiguration("manipulator_controller")
 
     robot_description = {
         "robot_description": Command(
@@ -234,7 +238,7 @@ def generate_launch_description() -> LaunchDescription:
                 controllers_file,
                 " ",
                 "initial_positions_file:=",
-                LaunchConfiguration("initial_positions_file"),
+                initial_positions_file,
                 " ",
                 "namespace:=",
                 namespace,
@@ -269,6 +273,7 @@ def generate_launch_description() -> LaunchDescription:
             "--controller-manager",
             [namespace, "controller_manager"],
         ],
+        parameters=[{"use_sim_time": use_sim}],
     )
 
     manipulator_controller_spawner = Node(
@@ -276,10 +281,11 @@ def generate_launch_description() -> LaunchDescription:
         executable="spawner",
         output="both",
         arguments=[
-            LaunchConfiguration("manipulator_controller"),
+            manipulator_controller,
             "--controller-manager",
             [namespace, "controller_manager"],
         ],
+        parameters=[{"use_sim_time": use_sim}],
     )
 
     gz_spawner = Node(
@@ -293,6 +299,7 @@ def generate_launch_description() -> LaunchDescription:
         ],
         output="both",
         condition=IfCondition(use_sim),
+        parameters=[{"use_sim_time": use_sim}],
     )
 
     rviz = Node(
@@ -310,7 +317,7 @@ def generate_launch_description() -> LaunchDescription:
                 ]
             ),
         ],
-        parameters=[robot_description],
+        parameters=[robot_description, {"use_sim_time": use_sim}],
         condition=IfCondition(use_rviz),
     )
 
@@ -352,7 +359,8 @@ def generate_launch_description() -> LaunchDescription:
                         "config",
                         LaunchConfiguration("mavros_file"),
                     ]
-                )
+                ),
+                {"use_sim_time": use_sim},
             ],
         ),
         Node(
@@ -372,6 +380,30 @@ def generate_launch_description() -> LaunchDescription:
             executable="robot_state_publisher",
             output="both",
             parameters=[robot_description, {"use_sim_time": use_sim}],
+        ),
+        Node(
+            package="angler_utils",
+            executable="initial_position_setter",
+            name="initial_position_setter",
+            parameters=[
+                {
+                    "initial_positions_file": PathJoinSubstitution(
+                        [description_package, "config", initial_positions_file]
+                    ),
+                    "controller_cmd_topic": "/forward_velocity_controller/commands",
+                }
+            ],
+            condition=IfCondition(
+                PythonExpression(
+                    [
+                        "'",
+                        use_sim,
+                        "' == 'true' and '",
+                        manipulator_controller,
+                        "' == 'forward_velocity_controller'",
+                    ]
+                )
+            ),
         ),
     ]
 
@@ -457,7 +489,8 @@ def generate_launch_description() -> LaunchDescription:
                         "config",
                         LaunchConfiguration("manager_file"),
                     ]
-                )
+                ),
+                "use_sim_time": use_sim,
             }.items(),
         ),
         IncludeLaunchDescription(
@@ -475,6 +508,7 @@ def generate_launch_description() -> LaunchDescription:
                     ]
                 ),
                 "controller": LaunchConfiguration("base_controller"),
+                "use_sim_time": use_sim,
             }.items(),
         ),
         IncludeLaunchDescription(
@@ -494,6 +528,7 @@ def generate_launch_description() -> LaunchDescription:
                 "localization_source": LaunchConfiguration("localization_source"),
                 "use_mocap": LaunchConfiguration("use_mocap"),
                 "use_camera": LaunchConfiguration("use_camera"),
+                "use_sim_time": use_sim,
             }.items(),
         ),
     ]

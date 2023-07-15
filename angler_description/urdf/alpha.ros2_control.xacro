@@ -36,7 +36,7 @@
           <param name="max">2.5</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['axis_a']}</param>
+          <param name="initial_value">${initial_positions['alpha_axis_a']}</param>
         </state_interface>
         <state_interface name="velocity" />
       </joint>
@@ -50,7 +50,7 @@
           <param name="max">1.0</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['axis_b']}</param>
+          <param name="initial_value">${initial_positions['alpha_axis_b']}</param>
         </state_interface>
         <state_interface name="velocity" />
       </joint>
@@ -64,7 +64,7 @@
           <param name="max">1.0</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['axis_c']}</param>
+          <param name="initial_value">${initial_positions['alpha_axis_c']}</param>
         </state_interface>
         <state_interface name="velocity" />
       </joint>
@@ -78,7 +78,7 @@
           <param name="max">1.0</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['axis_d']}</param>
+          <param name="initial_value">${initial_positions['alpha_axis_d']}</param>
         </state_interface>
         <state_interface name="velocity" />
       </joint>
@@ -92,7 +92,7 @@
           <param name="max">0.5</param>
         </command_interface>
         <state_interface name="position">
-          <param name="initial_value">${initial_positions['axis_e']}</param>
+          <param name="initial_value">${initial_positions['alpha_axis_e']}</param>
         </state_interface>
         <state_interface name="velocity" />
       </joint>
