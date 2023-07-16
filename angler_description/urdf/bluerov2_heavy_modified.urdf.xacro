@@ -28,11 +28,39 @@
         </geometry>
         <origin rpy="0 0 0" xyz="0 0 0" />
       </visual>
+      <!-- Split the collision into four boxes so that
+      we can adjust each one to balance things out -->
+
+      <!-- Front left -->
       <collision>
         <geometry>
-          <box size="0.457 0.575 0.05" />
+          <box size="0.2285 0.2875 0.071" />
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0 0.06" />
+        <origin rpy="0 0 0" xyz="0.11425 0.14375 0.08" />
+      </collision>
+
+      <!-- Front right -->
+      <collision>
+        <geometry>
+          <box size="0.2285 0.2875 0.081" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.11425 -0.14375 0.08" />
+      </collision>
+
+      <!-- Back left -->
+      <collision>
+        <geometry>
+          <box size="0.2285 0.2875 0.051" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="-0.11425 0.14375 0.08" />
+      </collision>
+
+      <!-- Back right -->
+      <collision>
+        <geometry>
+          <box size="0.2285 0.2875 0.061" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="-0.11425 -0.14375 0.08" />
       </collision>
     </link>
 
