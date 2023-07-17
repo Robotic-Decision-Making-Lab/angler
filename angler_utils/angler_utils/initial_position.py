@@ -85,7 +85,7 @@ class InitialPositionSetter(Node):
             "Attempting to drive the manipulator to the desired initial positions."
         )
 
-        # Configure how fast to go to the initial positons and when to stop
+        # Configure how fast to go to the initial positions and when to stop
         self.tol = self.get_parameter("position_tol").get_parameter_value().double_value
         self.joint_velocity = (
             self.get_parameter("joint_velocity").get_parameter_value().double_value
