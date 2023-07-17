@@ -25,10 +25,10 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the Blue control interface.
+    """Generate a launch description for the state mux/command demux.
 
     Returns:
-        LaunchDescription: The Blue control launch description.
+        LaunchDescription: The state mux/command demux launch description.
     """
     args = [
         DeclareLaunchArgument(

@@ -4,7 +4,7 @@
 
   <name>angler_description</name>
   <version>0.0.1</version>
-  <description>angler description files</description>
+  <description>A collection of configuration and description files for angler</description>
 
   <maintainer email="evanp922@gmail.com">Evan Palmer</maintainer>
   <license>MIT</license>

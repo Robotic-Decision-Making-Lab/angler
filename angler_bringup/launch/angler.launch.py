@@ -58,7 +58,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             "description_file",
             default_value="angler.config.xacro",
-            description="The URDF/XACRO description file with the Alpha.",
+            description="The URDF/XACRO for the UVMS.",
         ),
         DeclareLaunchArgument(
             "planning_file",

@@ -38,13 +38,6 @@ log
 .vscode
 __pycache__
 
-# VCS imports
-alpha/
-blue/
-ros_gz/
-gz-plugin/
-gz_ros2_control/
-
 # ArduSub SITL
 eeprom.bin
 mav.parm

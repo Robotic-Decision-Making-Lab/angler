@@ -228,8 +228,7 @@ ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     # Expose the environment variables to the non-root user
-    && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /ros_entrypoint.sh ]; then source /ros_entrypoint.sh; fi" >> /home/$USERNAME/.bashrc
 
 ENTRYPOINT [ "/ros_entrypoint.sh" ]
 CMD ["bash"]
