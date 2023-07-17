@@ -5,9 +5,6 @@
 !angler_bringup
 !angler_planning
 !angler_msgs
-<<<<<<< HEAD
 !angler_mux
 !angler.repos
 !.docker/entrypoints
-=======
->>>>>>> origin/develop

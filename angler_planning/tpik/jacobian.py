@@ -17,3 +17,33 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import numpy as np
+
+
+def calculate_vehicle_angular_velocity_jacobian(
+    angular_velocity: np.ndarray,
+) -> np.ndarray:
+    """underwater robots pg 25, eq 2.3"""
+    roll, pitch, _ = angular_velocity
+
+    return np.array(
+        [
+            [1, 0, np.sin(pitch)],
+            [0, np.cos(roll), np.cos(pitch) * np.sin(roll)],
+            [0 - np.sin(roll), np.cos(pitch * np.cos(roll))],
+        ]
+    )
+
+
+def calculate_vehicle_jacobian(
+    orientation: np.ndarray, angular_velocity_jacobian: np.ndarray
+) -> np.ndarray:
+    """underwater robots pg 31, eq 2.19"""
+    return np.array(
+        [[orientation, np.zeros((3, 3))], [np.zeros((3, 3)), angular_velocity_jacobian]]
+    )
+
+
+def calculate_manipulator_jacobian(joint_angles: np.ndarray) -> np.ndarray:
+    ...
