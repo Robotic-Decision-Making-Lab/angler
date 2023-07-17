@@ -151,8 +151,8 @@ USER root
 ENV USER=root
 
 # Extend the ros_entrypoint to source the simulation environment
-COPY .docker/sim_entrypoint.sh .
-RUN sed -i '/source "\/opt\/ros\/$ROS_DISTRO\/setup\.bash" --/a source $HOME/sim_entrypoint.sh' /ros_entrypoint.sh
+COPY .docker/entrypoints/sim.sh /
+RUN sed -i '/source "\/opt\/ros\/$ROS_DISTRO\/setup\.bash" --/a source /sim.sh' /ros_entrypoint.sh
 
 ##################################################
 # deps: Install all external project dependencies
@@ -222,8 +222,14 @@ RUN python3 -m pip install \
     black \
     setuptools==58.2.0
 
+COPY .docker/entrypoints/dev.sh /
+
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
+    # Expose the environment variables to the non-root user
+    && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
+    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
 
 ENTRYPOINT [ "/ros_entrypoint.sh" ]
+CMD ["bash"]

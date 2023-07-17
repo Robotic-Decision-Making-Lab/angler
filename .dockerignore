@@ -7,4 +7,4 @@
 !angler_msgs
 !angler_mux
 !angler.repos
-!.docker/sim_entrypoint.sh
+!.docker/entrypoints
