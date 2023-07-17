@@ -37,3 +37,10 @@ install
 log
 .vscode
 __pycache__
+
+# ArduSub SITL
+eeprom.bin
+mav.parm
+mav.tlog
+mav.tlog.raw
+logs/

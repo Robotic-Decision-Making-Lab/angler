@@ -1,0 +1,323 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="angler_gazebo" params="prefix namespace controllers_file">
+
+    <!-- ros2_control -->
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <xacro:if value="${namespace != '/'}">
+          <ros>
+            <namespace>/${namespace[:-1]}</namespace>
+          </ros>
+          <robot_param_node>/${namespace}robot_state_publisher</robot_param_node>
+        </xacro:if>
+        <parameters>$(find angler_description)/config/${controllers_file}</parameters>
+      </plugin>
+    </gazebo>
+
+    <!-- Ardupilot -->
+    <gazebo>
+      <plugin name="ArduPilotPlugin" filename="libArduPilotPlugin.so">
+        <!-- Port settings -->
+        <fdm_addr>127.0.0.1</fdm_addr>
+        <fdm_port_in>9002</fdm_port_in>
+        <connectionTimeoutMaxCount>5</connectionTimeoutMaxCount>
+        <lock_step>1</lock_step>
+
+        <!-- Transform from the Gazebo body frame (x-forward, y-left, z-up)
+           to the ArduPilot body frame (x-forward, y-right, z-down) -->
+        <modelXYZToAirplaneXForwardZDown>0 0 0 3.142 0 0</modelXYZToAirplaneXForwardZDown>
+
+        <!-- Transform from the Gazebo world frame (ENU)
+           to the ArduPilot world frame (NED) -->
+        <gazeboXYZToNED>0 0 0 3.142 0 1.571</gazeboXYZToNED>
+
+        <!-- Sensors -->
+        <imuName>imu_sensor</imuName>
+
+        <!-- Thrusters -->
+        <control channel="0">
+          <jointName>thruster1_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster1_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="1">
+          <jointName>thruster2_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster2_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="2">
+          <jointName>thruster3_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster3_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="3">
+          <jointName>thruster4_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster4_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="4">
+          <jointName>thruster5_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster5_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="5">
+          <jointName>thruster6_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster6_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="6">
+          <jointName>thruster7_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster7_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+        <control channel="7">
+          <jointName>thruster8_joint</jointName>
+          <servo_min>1100</servo_min>
+          <servo_max>1900</servo_max>
+          <type>COMMAND</type>
+          <cmd_topic>/model/angler/joint/thruster8_joint/cmd_thrust</cmd_topic>
+          <offset>-0.5</offset>
+          <multiplier>100</multiplier>
+        </control>
+
+      </plugin>
+    </gazebo>
+
+    <!-- Hydrodynamics plugin -->
+    <gazebo>
+      <plugin filename="gz-sim-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
+        <link_name>${prefix}base_footprint</link_name>
+        <!-- Added mass -->
+        <xDotU>0</xDotU>
+        <yDotV>0</yDotV>
+        <zDotW>0</zDotW>
+        <kDotP>0</kDotP>
+        <mDotQ>0</mDotQ>
+        <nDotR>0</nDotR>
+        <!-- First order stability derivative -->
+        <xU>0</xU>
+        <yV>0</yV>
+        <zW>0</zW>
+        <kP>0</kP>
+        <mQ>0</mQ>
+        <nR>0</nR>
+        <!-- Second order stability derivative -->
+        <xUabsU>-58.42</xUabsU>
+        <yVabsV>-55.137</yVabsV>
+        <zWabsW>-124.818</zWabsW>
+        <kPabsP>-4.0</kPabsP>
+        <mQabsQ>-4.0</mQabsQ>
+        <nRabsR>-4.0</nRabsR>
+      </plugin>
+    </gazebo>
+
+    <!-- IMU sensor gyro and accel data will be sent to ArduSub -->
+    <gazebo reference="${prefix}base_link">
+      <sensor name="imu_sensor" type="imu">
+        <!-- Transform from the Gazebo body frame (x-forward, y-left, z-up)
+         to the ArduPilot body frame (x-forward, y-right, z-down) -->
+        <pose>0 0 0 3.142 0 0</pose>
+        <always_on>true</always_on>
+        <update_rate>1000.0</update_rate>
+      </sensor>
+    </gazebo>
+
+    <!-- Publish the ground-truth pose -->
+    <gazebo>
+      <plugin
+        filename="gz-sim-odometry-publisher-system"
+        name="gz::sim::systems::OdometryPublisher">
+        <odom_frame>map</odom_frame>
+        <robot_base_frame>${prefix}base_link</robot_base_frame>
+        <dimensions>3</dimensions>
+        <odom_publish_frequency>100</odom_publish_frequency>
+      </plugin>
+    </gazebo>
+
+    <!-- Thrusters -->
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster1_joint</joint_name>
+        <thrust_coefficient>0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster2_joint</joint_name>
+        <thrust_coefficient>0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster3_joint</joint_name>
+        <!-- Reverse spin to balance torque -->
+        <thrust_coefficient>-0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster4_joint</joint_name>
+        <!-- Reverse spin to balance torque -->
+        <thrust_coefficient>-0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster5_joint</joint_name>
+        <thrust_coefficient>0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster6_joint</joint_name>
+        <!-- Reverse spin to balance torque -->
+        <thrust_coefficient>-0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster7_joint</joint_name>
+        <!-- Reverse spin to balance torque -->
+        <thrust_coefficient>-0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <gazebo>
+      <plugin
+        filename="gz-sim-thruster-system"
+        name="gz::sim::systems::Thruster">
+        <namespace>angler</namespace>
+        <joint_name>thruster8_joint</joint_name>
+        <thrust_coefficient>0.02</thrust_coefficient>
+        <fluid_density>1000.0</fluid_density>
+        <propeller_diameter>0.1</propeller_diameter>
+        <velocity_control>true</velocity_control>
+        <use_angvel_cmd>False</use_angvel_cmd>
+      </plugin>
+    </gazebo>
+
+    <!-- Materials -->
+    <gazebo reference="${prefix}alpha_base_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_ee_base_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_m1_link" />
+    <gazebo reference="${prefix}alpha_m1_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_m2_1_1_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_m2_1_2_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_m2_joint_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_m3_inline_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_push_rod">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_standard_jaws_base_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_standard_jaws_rs1_130_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+    <gazebo reference="${prefix}alpha_standard_jaws_rs1_139_link">
+      <material>Gazebo/Gray</material>
+    </gazebo>
+
+  </xacro:macro>
+
+</robot>

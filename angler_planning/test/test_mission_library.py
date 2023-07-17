@@ -19,9 +19,8 @@
 # THE SOFTWARE.
 
 import pytest
-
-from angler_planning.missions.mission_library import Mission
-from angler_planning.missions.mission_library import MissionLibrary as ml
+from mission_planning.missions.mission_library import Mission
+from mission_planning.missions.mission_library import MissionLibrary as ml
 
 
 @pytest.fixture(autouse=True)

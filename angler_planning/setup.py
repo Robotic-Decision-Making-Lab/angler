@@ -35,7 +35,7 @@ setup(
         (os.path.join("share", package_name), glob("launch/*.launch.py")),
         (
             os.path.join("share", package_name, "missions", "library"),
-            glob(f"{package_name}/missions/library/*.json"),
+            glob("mission_planning/missions/library/*.json"),
         ),
     ],
     install_requires=["setuptools", "scipy"],
@@ -49,7 +49,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "preplanned_mission_planner = angler_planning.mission_planner:main_preplanned"  # noqa
+            "preplanned_mission_planner = mission_planning.mission_planner:main_preplanned"  # noqa
         ],
     },
 )
