@@ -14,6 +14,7 @@ custom manipulation algorithms for the [Reach Alpha 5 manipulator](https://reach
 - ArduSub + Gazebo SITL integration including a simplified UVMS hydrodynamics
 model for evaluating and testing the performance of your algorithms
 - Support for developing custom planning algorithms
-- Integration of set-based task priority inverse kinematic control (TPIK) for
+- Integration of set-based task-priority inverse kinematic control (TPIK) for
 whole-body control
 - Energy optimal trajectory planning for operation in turbid conditions
+- RViz2 visualization support for hardware deployments

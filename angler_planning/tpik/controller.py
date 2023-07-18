@@ -17,3 +17,22 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import rclpy
+from rclpy.node import Node
+
+
+class TPIK(Node):
+    def __init__(self) -> None:
+        super().__init__("tpik")
+
+
+def main(args: list[str] | None = None):
+    """Run the TPIK controller."""
+    rclpy.init(args=args)
+
+    node = TPIK()
+    rclpy.spin(node)
+
+    node.destroy_node()
+    rclpy.shutdown()
