@@ -21,5 +21,6 @@
 import angler_planning.tpik.jacobian as jc
 
 
-def task_factory():
-    ...
+class Task:
+    def __init__(self, jacobian: ) -> None:
+        pass
