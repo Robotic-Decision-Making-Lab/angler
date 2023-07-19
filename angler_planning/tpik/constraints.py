@@ -17,3 +17,53 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import numpy as np
+
+"""
+We are not scaling the waves, we are distorting them
+
+we can only match the horizontal wave kinematics, but not the vertical (not orbital
+velocities) - vertical accuracy can be assessed
+
+Trying to have matching wave conditions
+
+In lab we cannot reproduce conditions at full scale
+
+Normally, reduce scale to reproduce the waves at some scale, need to scale down auv
+
+Consider the condition that has the dominant effect on the AUV (horizontal velocity)
+
+Need to keep one thing constant (wave period) - match horizontal velocity
+
+In the distortion, the orbital velocities will be distorted
+
+If we say that we are scaling, we need to be able to say that we are scaling the dynamics
+and kinematics of the real world
+
+Assuming that there is only one component that is reproducible and we are going to apply
+that, the rest will be distorted
+"""
+
+
+class Constraint:
+    def __init__(self, jacobian: np.ndarray, gain: float, priority: float) -> None:
+        self.jacobian = jacobian
+        self.gain = gain
+        self.priority = priority
+
+
+class EqualityConstraint(Constraint):
+    def __init__(self, jacobian: np.ndarray, gain: float, priority: float) -> None:
+        super().__init__(jacobian, gain, priority)
+
+
+class SetConstraint(Constraint):
+    def __init__(
+        self,
+        jacobian: np.ndarray,
+        range: tuple[float | None, float | None],
+        gain: float,
+        priority: float,
+    ) -> None:
+        super().__init__(jacobian, gain, priority)

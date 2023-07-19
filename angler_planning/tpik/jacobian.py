@@ -207,5 +207,38 @@ def calculate_vehicle_yaw_jacobian(
     return J
 
 
-def calculate_vehicle_orientation_jacobian(rot: Rotation) -> np.ndarray:
+def calculate_joint_limit_jacobian(
+    joint_index: int, num_system_joints: int
+) -> np.ndarray:
+    """Calculate the Jacobian for a joint limit.
+
+    Args:
+        joint_index: The joint's index within the system Jacobian.
+        num_system_joints: The total number of joints that the system has (e.g., 6 + n,
+            where "n" is the total number of manipulator joints).
+
+    Returns:
+        The joint limit Jacobian.
+    """
+    J = np.zeros((1, num_system_joints))
+    J[joint_index] = 1
+
+    return J
+
+
+def calculate_maximum_depth_jacobian():
+    """Calculate the Jacobian for the maximum depth.
+
+    Returns:
+        The max depth Jacobian.
+    """
+    J = np.zeros((1, 6))
+
+    # Set the Z-axis element to 1
+    J[2] = 1
+
+    return J
+
+
+def calculate_vehicle_energy_jacobian():
     ...
