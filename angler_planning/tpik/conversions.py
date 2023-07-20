@@ -19,7 +19,7 @@
 # THE SOFTWARE.
 
 import numpy as np
-from geometry_msgs.msg import Point, Pose, Quaternion, Transform
+from geometry_msgs.msg import Point, Quaternion, Vector3
 from scipy.spatial.transform import Rotation as R
 
 
@@ -35,7 +35,7 @@ def quaternion_to_rotation(quat: Quaternion) -> R:
     return R.from_quat([quat.x, quat.y, quat.z, quat.w])
 
 
-def point_to_array(point: Point) -> np.ndarray:
+def point_to_array(point: Point | Vector3) -> np.ndarray:
     """Convert a Point message into a numpy array.
 
     Args:
@@ -45,41 +45,3 @@ def point_to_array(point: Point) -> np.ndarray:
         The resulting point as a 3x1 numpy array.
     """
     return np.array([point.x, point.y, point.z]).reshape((3, 1))
-
-
-def transform_to_array(transform: Transform) -> np.ndarray:
-    """Convert a Transform message into a homogenous transformation matrix.
-
-    Args:
-        transform: The Transform message to convert.
-
-    Returns:
-        The resulting transformation matrix as a 4x4 numpy array.
-    """
-    rot = quaternion_to_rotation(transform.rotation)
-    rot_mat = rot.as_matrix()
-
-    transformation_mat = np.zeros((4, 4))
-    transformation_mat[0:3, 0:3] = rot_mat
-    rot_mat[0:3, 3] = np.array(
-        [transform.translation.x, transform.translation.y, transform.translation.z]
-    ).reshape((3, 1))
-    transformation_mat[3, 3] = 1
-
-    return transformation_mat
-
-
-def pose_to_array(pose: Pose) -> np.ndarray:
-    """Convert a Pose message into a numpy array compatible with the Jacobian interface.
-
-    Args:
-        pose: The Pose message to convert into an array.
-
-    Returns:
-        The resulting pose as a 6x1 numpy array.
-    """
-    p = np.zeros((6, 1))
-    p[0:3] = point_to_array(pose.position)
-    p[3:6] = quaternion_to_rotation(pose.orientation).as_euler("xyz").reshape((3, 1))
-
-    return p
