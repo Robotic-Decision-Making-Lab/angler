@@ -37,6 +37,10 @@ setup(
             os.path.join("share", package_name, "missions", "library"),
             glob("mission_planning/missions/library/*.json"),
         ),
+        (
+            os.path.join("share", package_name, "test", "resources"),
+            glob("test/resources/*"),
+        ),
     ],
     install_requires=["setuptools", "scipy"],
     zip_safe=True,

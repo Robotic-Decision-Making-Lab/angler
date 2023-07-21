@@ -18,8 +18,42 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import numpy as np
 import rclpy
 from rclpy.node import Node
+
+
+def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
+    """Calculate the nullspace of the augmented Jacobian.
+
+    Args:
+        augmented_jacobian: The augmented Jacobian whose nullspace will be projected
+            into.
+
+    Returns:
+        The nullspace of the augmented Jacobian.
+    """
+    return (
+        np.eye(augmented_jacobian.shape[0], augmented_jacobian.shape[1])
+        - np.linalg.pinv(augmented_jacobian) @ augmented_jacobian
+    )
+
+
+def construct_augmented_jacobian(jacobians: list[np.ndarray]) -> np.ndarray:
+    """Construct an augmented Jacobian matrix.
+
+    The augmented Jacobian matrix is given as:
+
+    J_i^A = [J_1, J_2, ..., J_i]^T
+
+    Args:
+        jacobians: The Jacobian matrices which should be used to construct the
+            augmented Jacobian.
+
+    Returns:
+        The resulting augmented Jacobian.
+    """
+    return np.vstack(tuple(jacobians))
 
 
 class TPIK(Node):

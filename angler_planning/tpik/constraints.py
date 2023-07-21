@@ -78,22 +78,6 @@ class Constraint(ABC):
         """
         return feedforward + self.gain @ error
 
-    @staticmethod
-    def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
-        """Calculate the nullspace of the augmented Jacobian.
-
-        Args:
-            augmented_jacobian: The augmented Jacobian whose nullspace will be projected
-                into.
-
-        Returns:
-            The nullspace of the augmented Jacobian.
-        """
-        return (
-            np.eye(augmented_jacobian.shape[0], augmented_jacobian.shape[1])
-            - np.linalg.pinv(augmented_jacobian) @ augmented_jacobian
-        )
-
 
 class EqualityConstraint(Constraint):
     def __init__(
@@ -171,8 +155,8 @@ class EndEffectorPoseConstraint(EqualityConstraint):
 
         Args:
             feedforward: The desired end-effector velocity.
-            desired_pose: The desired end-effector pose.
-            actual_pose: The current end-effector pose.
+            desired_pose: The desired end-effector pose in the inertial (map) frame.
+            actual_pose: The current end-effector pose in the inertial (map) frame.
 
         Returns:
             The reference signal to use to drive the system to the desired end effector
@@ -215,14 +199,16 @@ class EndEffectorPoseConstraint(EqualityConstraint):
             ]
         )
 
+        # We only need the axis of rotation between the desired and current frames
+        # because this will become zero when the two axes are aligned
         ori_error = (
-            quat_a[3] * quat_d[0:3]
-            - quat_d[3] * quat_a[0:3]
-            + np.cross(quat_a[0:3], quat_d[0:3])
+            quat_a[3] * quat_d[:3]
+            - quat_d[3] * quat_a[:3]
+            + np.cross(quat_a[:3], quat_d[:3])
         )
 
         error = np.zeros((6, 1))
-        error[0:3] = pos_error
+        error[:3] = pos_error
         error[3:6] = ori_error
 
         return super().calculate_reference(feedforward_ar, error)

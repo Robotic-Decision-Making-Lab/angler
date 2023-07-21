@@ -22,11 +22,11 @@ from typing import Any
 
 import numpy as np
 import tpik.conversions as conversions
-from geometry_msgs.msg import Point, Transform
+from geometry_msgs.msg import Point, Quaternion, Transform
 
 
 def calculate_vehicle_angular_velocity_jacobian(
-    transform_map_to_base: Transform,
+    rot_map_to_base: Quaternion,
 ) -> np.ndarray:
     """Calculate the angular velocity Jacobian for the vehicle.
 
@@ -34,13 +34,13 @@ def calculate_vehicle_angular_velocity_jacobian(
     Equation 2.3, and is denoted there as "J_k,o".
 
     Args:
-        transform_map_to_base: The transformation from the inertial frame to the
-            body-fixed frame (map -> base_link).
+        rot_map_to_base: The quaternion describing the rotation from the inertial frame
+            to the vehicle-fixed frame (map -> base_link).
 
     Returns:
         The vehicle's angular velocity Jacobian.
     """
-    rot = conversions.quaternion_to_rotation(transform_map_to_base.rotation)
+    rot = conversions.quaternion_to_rotation(rot_map_to_base)
     roll, pitch, _ = rot.as_euler("xyz")
 
     return np.array(
@@ -48,31 +48,8 @@ def calculate_vehicle_angular_velocity_jacobian(
             [1, 0, -np.sin(pitch)],
             [0, np.cos(roll), np.cos(pitch) * np.sin(roll)],
             [0, -np.sin(roll), np.cos(pitch) * np.cos(roll)],
-        ]
+        ]  # type: ignore
     )
-
-
-def calculate_vehicle_jacobian(transform_map_to_base: Transform) -> np.ndarray:
-    """Calculate the Jacobian for the vehicle.
-
-    This is defined by Gianluca Antonelli in his textbook "Underwater Robotics" in
-    Equation 2.19, and is denoted there as "J_e".
-
-    Args:
-        transform_map_to_base: The transformation from the inertial frame to the
-            body-fixed frame (map -> base_link).
-
-    Returns:
-        The vehicle Jacobian matrix.
-    """
-    rot = conversions.quaternion_to_rotation(transform_map_to_base.rotation)
-
-    J = np.zeros((6, 6))
-
-    J[0:3, 0:3] = rot.as_matrix()
-    J[3:6, 3:6] = calculate_vehicle_angular_velocity_jacobian(transform_map_to_base)
-
-    return J
 
 
 def calculate_manipulator_jacobian(
@@ -88,6 +65,70 @@ def calculate_manipulator_jacobian(
         The manipulator Jacobian matrix.
     """
     return np.array(serial_chain.jacobian(joint_angles))
+
+
+def calculate_vehicle_orientation_jacobian(
+    rot_base_to_map: Transform, num_manipulator_joints: int
+):
+    """Calculate the vehicle orientation Jacobian.
+
+    Args:
+        rot_base_to_map: The quaternion describing the rotation from the vehicle-fixed
+            frame to the inertial frame (base_link -> map).
+        num_manipulator_joints: The total number of joints that the manipulator has.
+
+    Returns:
+        The vehicle orientation Jacobian.
+    """
+    J = np.zeros((3, 6 + num_manipulator_joints))
+    J[:, 3:6] = conversions.quaternion_to_rotation(rot_base_to_map.rotation).as_matrix()
+
+    return J
+
+
+def calculate_vehicle_roll_pitch_jacobian(
+    rot_map_to_base: Quaternion, num_manipulator_joints: int
+) -> np.ndarray:
+    """Calculate the vehicle roll-pitch task Jacobian.
+
+    Args:
+        rot_map_to_base: The quaternion describing the rotation from the inertial frame
+            to the vehicle-fixed frame (map -> base_link).
+        num_manipulator_joints: The total number of joints that the manipulator has.
+
+    Returns:
+        The Jacobian for a task which controls the vehicle roll and pitch.
+    """
+    J_ko = calculate_vehicle_angular_velocity_jacobian(rot_map_to_base)
+
+    J = np.zeros((2, 6 + num_manipulator_joints))
+    J[:, 3:6] = np.array([[1, 0, 0], [0, 1, 0]]) @ np.linalg.pinv(J_ko)
+
+    return J
+
+
+def calculate_vehicle_yaw_jacobian(
+    rot_map_to_base: Quaternion, num_manipulator_joints: int
+) -> np.ndarray:
+    """Calculate the vehicle yaw task Jacobian.
+
+    Args:
+        rot_map_to_base: The quaternion describing the rotation from the inertial frame
+            to the vehicle-fixed frame (map -> base_link).
+        num_manipulator_joints: The total number of joints that the manipulator has.
+
+    Returns:
+        The Jacobian for a task which controls the vehicle yaw.
+    """
+    J_ko = calculate_vehicle_angular_velocity_jacobian(rot_map_to_base)
+
+    J = np.zeros((1, 6 + num_manipulator_joints))
+
+    # J_ko is square, so we should be able to take the inverse of this instead of the
+    # pseudoinverse
+    J[:, 3:6] = np.array([0, 0, 1]) @ np.linalg.inv(J_ko)
+
+    return J
 
 
 def calculate_uvms_jacobian(
@@ -129,73 +170,24 @@ def calculate_uvms_jacobian(
     R_0_M = R_B_M @ R_0_B
 
     r_B0_M = R_B_M @ r_0B_B
-    r_0ee_I = r_Mee_M - r_MB_M - r_B0_M  # type: ignore
+    r_0ee_M = r_Mee_M - r_MB_M - r_B0_M  # type: ignore
 
     def get_skew_matrix(x: np.ndarray) -> np.ndarray:
-        return np.array([[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]])
+        return np.array(
+            [[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]],  # type: ignore
+        )
 
     J = np.zeros((6, 6 + len(joint_angles)))
     J_man = calculate_manipulator_jacobian(serial_chain, joint_angles)
 
     # Position Jacobian
-    J[0:3, 0:3] = R_B_M
-    J[0:3, 3:6] = -(get_skew_matrix(r_B0_M) + get_skew_matrix(r_0ee_I)) @ R_B_M  # type: ignore # noqa
-    J[0:3, 6:] = R_0_M @ J_man[0:3]
+    J[:3, :3] = R_B_M
+    J[:3, 3:6] = -(get_skew_matrix(r_B0_M) + get_skew_matrix(r_0ee_M)) @ R_B_M  # type: ignore # noqa
+    J[:3, 6:] = R_0_M @ J_man[:3]
 
     # Orientation Jacobian
     J[3:6, 3:6] = R_B_M
     J[3:6, 6:] = R_0_M @ J_man[3:6]
-
-    return J
-
-
-def calculate_vehicle_roll_pitch_jacobian(
-    transform_map_to_base: Transform, num_manipulator_joints: int
-) -> np.ndarray:
-    """Calculate the vehicle roll-pitch task Jacobian.
-
-    Args:
-        transform_map_to_base: The transformation from the inertial frame to the
-            body-fixed frame (map -> base_link).
-        num_manipulator_joints: The total number of joints that the manipulator has.
-
-    Returns:
-        The Jacobian for a task which controls the vehicle roll and pitch.
-    """
-    J_ko = calculate_vehicle_angular_velocity_jacobian(transform_map_to_base)
-
-    J = np.array(
-        [
-            np.zeros((2, 3)),
-            np.array([1, 0, 0], [0, 1, 0]) @ np.linalg.pinv(J_ko),
-            np.zeros((2, num_manipulator_joints)),
-        ]
-    )
-
-    return J
-
-
-def calculate_vehicle_yaw_jacobian(
-    transform_map_to_base: Transform, num_manipulator_joints: int
-) -> np.ndarray:
-    """Calculate the vehicle yaw task Jacobian.
-
-    Args:
-        transform_map_to_base: The transformation from the inertial frame to the
-            body-fixed frame (map -> base_link).
-        num_manipulator_joints: The total number of joints that the manipulator has.
-
-    Returns:
-        The Jacobian for a task which controls the vehicle yaw.
-    """
-    J_ko = calculate_vehicle_angular_velocity_jacobian(transform_map_to_base)
-    J = np.array(
-        [
-            np.zeros((1, 3)),
-            np.array([0, 0, 1]) @ np.linalg.pinv(J_ko),
-            np.zeros((1, num_manipulator_joints)),
-        ]
-    )
 
     return J
 
@@ -219,7 +211,7 @@ def calculate_joint_limit_jacobian(
 
 
 def calculate_vehicle_manipulator_collision_avoidance_jacobian(
-    p1: Point, p2: Point, p3: Point, serial_chain: Any, joint_angles: np.ndarray
+    plane: tuple[Point, Point, Point], serial_chain: Any, joint_angles: np.ndarray
 ):
     """Calculate the vehicle/manipulator collision avoidance Jacobian.
 
@@ -228,23 +220,19 @@ def calculate_vehicle_manipulator_collision_avoidance_jacobian(
     vehicle.
 
     Args:
-        p1: The first point on the collision plane.
-        p2: The second point on the collision plane.
-        p3: The third point on the collision plane.
+        plane: A tuple of three distinct points which describe the plane that the
+            manipulator should not pass.
         serial_chain: The manipulator's kinpy serial chain.
         joint_angles: The manipulator's current joint angles.
 
     Returns:
         The collision avoidance Jacobian.
     """
-    # Convert the points to numpy arrays
-    p1_ar = conversions.point_to_array(p1)
-    p2_ar = conversions.point_to_array(p2)
-    p3_ar = conversions.point_to_array(p3)
+    p1, p2, p3 = [conversions.point_to_array(p) for p in plane]
 
     # Calculate the outer normal to the plane
-    plane_normal = np.cross((p2_ar - p1_ar), (p3_ar - p1_ar)) / np.linalg.norm(  # type: ignore # noqa
-        np.cross((p2_ar - p1_ar), (p3_ar - p1_ar))  # type: ignore
+    plane_normal = np.cross((p2 - p1), (p3 - p1)) / np.linalg.norm(  # type: ignore
+        np.cross((p2 - p1), (p3 - p1))  # type: ignore
     )
 
     # Get the manipulator's vehicle Jacobian
