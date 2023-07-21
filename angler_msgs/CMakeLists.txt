@@ -19,8 +19,6 @@ set(action_files
 
 set(msg_files
   "msg/Waypoint.msg"
-  "msg/UvmsState.msg"
-  "msg/UvmsCmd.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

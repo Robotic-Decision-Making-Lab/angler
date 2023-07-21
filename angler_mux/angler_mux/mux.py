@@ -19,12 +19,12 @@
 # THE SOFTWARE.
 
 import rclpy
+from geometry_msgs.msg import Transform
+from moveit_msgs.msg import RobotState
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import JointState
-
-from angler_msgs.msg import UvmsState
 
 
 class Mux(Node):
@@ -43,10 +43,10 @@ class Mux(Node):
         super().__init__(node_name)
 
         # Maintain the UVMS state
-        self.uvms_state = UvmsState()
+        self.uvms_state = RobotState()
 
         # Publishers
-        self.uvms_state_pub = self.create_publisher(UvmsState, "/angler/state", 1)
+        self.uvms_state_pub = self.create_publisher(RobotState, "/angler/state", 1)
 
         # Subscribers
         self.base_state_sub = self.create_subscription(
@@ -62,7 +62,21 @@ class Mux(Node):
         Args:
             odom: The current state (pose + velocity) of the base.
         """
-        self.uvms_state.base = odom
+        # Convert the message into a Transform message
+        transform = Transform()
+
+        # This is the transform from the map frame to the base_link frame
+        transform.translation.x = odom.pose.pose.position.x
+        transform.translation.y = odom.pose.pose.position.y
+        transform.translation.z = odom.pose.pose.position.z
+        transform.rotation = odom.pose.pose.orientation
+
+        # Update the MultiDOFJointState
+        self.uvms_state.multi_dof_joint_state.header.frame_id = "map"
+        self.uvms_state.multi_dof_joint_state.header.stamp = self.get_clock().now()
+        self.uvms_state.multi_dof_joint_state.joint_names = ["vehicle"]
+        self.uvms_state.multi_dof_joint_state.transforms = [transform]
+        self.uvms_state.multi_dof_joint_state.twist = [odom.twist.twist]
 
         # Publish the UVMS state each time we get an update
         self.uvms_state_pub.publish(self.uvms_state)
@@ -89,7 +103,7 @@ class SingleManipulatorMux(Mux):
         Args:
             state: The current Reach Alpha joint state.
         """
-        self.uvms_state.manipulator = state
+        self.uvms_state.joint_state = state
 
         # Publish the UVMS state each time we get an update
         self.uvms_state_pub.publish(self.uvms_state)

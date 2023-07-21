@@ -20,10 +20,10 @@
 
 import rclpy
 from geometry_msgs.msg import Twist
+from moveit_msgs.msg import RobotTrajectory
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
-
-from angler_msgs.msg import UvmsCmd
+from trajectory_msgs.msg import JointTrajectoryPoint, MultiDOFJointTrajectoryPoint
 
 
 class VelocityDemux(Node):
@@ -54,10 +54,10 @@ class VelocityDemux(Node):
 
         # Subscribers
         self.uvms_cmd_vel_sub = self.create_subscription(
-            UvmsCmd, "/angler/cmd_vel", self.proxy_cmd_vel_cb, 1
+            RobotTrajectory, "/angler/robot_trajectory", self.proxy_cmd_vel_cb, 1
         )
 
-    def proxy_cmd_vel_cb(self, cmd: UvmsCmd) -> None:
+    def proxy_cmd_vel_cb(self, cmd: RobotTrajectory) -> None:
         """Proxy the base velocity command to its respective topic.
 
         NOTE: This should be overridden to support one or more manipulators.
@@ -65,10 +65,21 @@ class VelocityDemux(Node):
         Args:
             cmd: The system velocity command.
         """
-        self.base_cmd_vel_pub.publish(cmd.base)
+        try:
+            point: MultiDOFJointTrajectoryPoint = (
+                cmd.multi_dof_joint_trajectory.points[  # type:ignore
+                    0
+                ]
+            )
+            cmd_vel: Twist = point.velocities[0]  # type: ignore
+            self.base_cmd_vel_pub.publish(cmd_vel)
+        except IndexError as e:
+            self.get_logger().error(
+                f"An error occurred while attempting to demux the RobotTrajectory: {e}",
+            )
 
 
-class SingleManipulatorVelocityDemux(VelocityDemux):
+class SingleManipulatorForwardVelocityDemux(VelocityDemux):
     """Demux velocities for a single manipulator with a forward velocity controller."""
 
     def __init__(self) -> None:
@@ -89,7 +100,7 @@ class SingleManipulatorVelocityDemux(VelocityDemux):
             1,
         )
 
-    def proxy_cmd_vel_cb(self, cmd: UvmsCmd) -> None:
+    def proxy_cmd_vel_cb(self, cmd: RobotTrajectory) -> None:
         """Proxy the manipulator joint velocities.
 
         Args:
@@ -98,15 +109,22 @@ class SingleManipulatorVelocityDemux(VelocityDemux):
         # Proxy the base velocity command
         super().proxy_cmd_vel_cb(cmd)
 
+        # Convert the JointTrajectory into a command that the forward velocity
+        # controller can use
+        joint_vel_cmd = Float64MultiArray()
+
+        point: JointTrajectoryPoint = cmd.joint_trajectory.points[0]  # type:ignore
+        joint_vel_cmd.data = point.positions
+
         # Now proxy the manipulator joint velocity command
-        self.manipulator_cmd_vel_pub.publish(cmd.manipulator.data)
+        self.manipulator_cmd_vel_pub.publish(joint_vel_cmd)
 
 
 def main_single_manipulator_demux(args: list[str] | None = None):
     """Run the mux for a single manipulator."""
     rclpy.init(args=args)
 
-    node = SingleManipulatorVelocityDemux()
+    node = SingleManipulatorForwardVelocityDemux()
     rclpy.spin(node)
 
     node.destroy_node()

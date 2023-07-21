@@ -1,0 +1,4 @@
+# Requirements unavailable as rosdeps:
+# https://github.com/ros/rosdistro/blob/master/rosdep/python.yaml
+qtm
+kinpy

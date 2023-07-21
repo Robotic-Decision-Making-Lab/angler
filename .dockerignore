@@ -8,3 +8,5 @@
 !angler_mux
 !angler.repos
 !.docker/entrypoints
+!requirements-build.txt
+!requirements-devel.txt

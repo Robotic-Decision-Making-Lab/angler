@@ -31,10 +31,8 @@ RUN apt-get -q update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Qualisys Python SDK
-# This isn't available as a rosdep, so we need to install
-# it manually
-RUN python3 -m pip install qtm
+# Install Python packages which aren't available as rosdeps
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-build.txt
 
 # Install gstreamer
 RUN apt-get -q update \
@@ -192,6 +190,9 @@ WORKDIR $ROS_UNDERLAY/..
 
 COPY . src/angler
 
+# Install debugging/linting Python packages
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-devel.txt
+
 RUN apt-get -q update \
     && apt-get -q -y upgrade \
     && vcs import src < src/angler/angler.repos \
@@ -213,15 +214,6 @@ RUN apt-get -q update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install debugging/linting Python packages
-RUN python3 -m pip install \
-    pre-commit \
-    mypy \
-    isort \
-    flake8 \
-    black \
-    setuptools==58.2.0
-
 COPY .docker/entrypoints/dev.sh /
 
 ARG WORKSPACE
@@ -229,4 +221,6 @@ RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/in
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     # Expose the environment variables to the non-root user
     && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc \
+    # Suppress setup utils warning
+    && echo "PYTHONWARNINGS='ignore:setup.py install is deprecated::setuptools.command.install'; export PYTHONWARNINGS" >> /home/$USERNAME/.bashrc

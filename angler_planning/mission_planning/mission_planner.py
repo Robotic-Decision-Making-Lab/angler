@@ -45,14 +45,14 @@ class MissionPlanner(Node, ABC):
             self, PlanMission, "/angler/plan/mission", self._get_plan_cb
         )
 
-    def destroy_node(self) -> bool:
+    def destroy_node(self) -> None:
         """Destroy the node.
 
         Returns:
             Whether or not the node was successfully destroyed.
         """
         self._planning_server.destroy()
-        return super().destroy_node()
+        super().destroy_node()
 
     def _get_plan_cb(self, planning_request: PlanMission.Goal) -> PlanMission.Result:
         """Proxy the request to the planner and send the result to the client.

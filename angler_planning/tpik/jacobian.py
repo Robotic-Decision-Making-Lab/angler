@@ -21,9 +21,8 @@
 from typing import Any
 
 import numpy as np
+import tpik.conversions as conversions
 from geometry_msgs.msg import Point, Transform
-
-import angler_planning.tpik.conversions as conversions
 
 
 def calculate_vehicle_angular_velocity_jacobian(
@@ -46,7 +45,7 @@ def calculate_vehicle_angular_velocity_jacobian(
 
     return np.array(
         [
-            [1, 0, np.sin(pitch)],
+            [1, 0, -np.sin(pitch)],
             [0, np.cos(roll), np.cos(pitch) * np.sin(roll)],
             [0, -np.sin(roll), np.cos(pitch) * np.cos(roll)],
         ]

@@ -31,15 +31,22 @@ class Constraint(ABC):
     """Base class for defining a constraint."""
 
     def __init__(
-        self, gain: float, priority: float, jacobian_func: Callable[[], np.ndarray]
+        self,
+        name: str,
+        gain: float,
+        priority: float,
+        jacobian_func: Callable[..., np.ndarray],
     ) -> None:
         """Create a new constraint.
 
         Args:
+            name: The name of the constraint. This is used to reference the constraint
+                during launch.
             gain: The constraint gain.
             priority: The constraint priority in the constraint priority list.
             jacobian_func: The function used to calculate the constraint Jacobian.
         """
+        self.name = name
         self.gain = gain
         self.priority = priority
         self._jacobian_func = jacobian_func
@@ -58,6 +65,8 @@ class Constraint(ABC):
         self, feedforward: np.ndarray, error: np.ndarray
     ) -> np.ndarray:
         """Calculate the reference signal for a task.
+
+        The reference signal is calculated using: feedforward + gain * error
 
         Args:
             feedforward: The reference signal feedforward term. This is typically the
@@ -88,26 +97,41 @@ class Constraint(ABC):
 
 class EqualityConstraint(Constraint):
     def __init__(
-        self, gain: float, priority: float, jacobian_func: Callable[[], np.ndarray]
+        self,
+        name: str,
+        gain: float,
+        priority: float,
+        jacobian_func: Callable[..., np.ndarray],
     ) -> None:
-        super().__init__(gain, priority, jacobian_func)
+        super().__init__(name, gain, priority, jacobian_func)
 
 
 class SetConstraint(Constraint):
     def __init__(
         self,
+        name: str,
         min_value: float,
         max_value: float,
         gain: float,
         priority: float,
-        jacobian_func: Callable[[], np.ndarray],
+        jacobian_func: Callable[..., np.ndarray],
     ) -> None:
-        super().__init__(gain, priority, jacobian_func)
+        super().__init__(name, gain, priority, jacobian_func)
 
 
 class EndEffectorPoseConstraint(EqualityConstraint):
+    """Control the end-effector pose using an equality constraint."""
+
     def __init__(self, gain: float, priority: float) -> None:
-        super().__init__(gain, priority, J.calculate_uvms_jacobian)  # type: ignore
+        """Create a new end-effector pose constraint.
+
+        Args:
+            gain: The constraint gain.
+            priority: The constraint priority.
+        """
+        super().__init__(
+            "end_effector_pose_eq", gain, priority, J.calculate_uvms_jacobian
+        )
 
     def calculate_jacobian(
         self,
@@ -143,6 +167,17 @@ class EndEffectorPoseConstraint(EqualityConstraint):
     def calculate_reference(
         self, feedforward: Twist, desired_pose: Pose, actual_pose: Pose
     ) -> np.ndarray:
+        """Calculate the reference signal for the controller.
+
+        Args:
+            feedforward: The desired end-effector velocity.
+            desired_pose: The desired end-effector pose.
+            actual_pose: The current end-effector pose.
+
+        Returns:
+            The reference signal to use to drive the system to the desired end effector
+                pose.
+        """
         feedforward_ar = np.array(
             [
                 feedforward.linear.x,
