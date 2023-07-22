@@ -93,8 +93,10 @@ class Mission:
             msg.pose.pose.orientation.z,
             msg.pose.pose.orientation.w,
         ) = R.from_euler(
-            "xyz", (waypoint["roll"], waypoint["pitch"], waypoint["yaw"])
-        ).as_quat()
+            "xyz", [waypoint["roll"], waypoint["pitch"], waypoint["yaw"]]
+        ).as_quat(
+            False
+        )
 
         msg.acceleration = waypoint["acceleration"]
         msg.velocity = waypoint["velocity"]
