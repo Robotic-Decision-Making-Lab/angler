@@ -21,36 +21,18 @@
 import json
 import os
 
+from geometry_msgs.msg import Transform, Twist
 from scipy.spatial.transform import Rotation as R
-
-from angler_msgs.msg import Waypoint
+from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
 
 
 class Mission:
     """A sequence of waypoints for the UVMS to track."""
 
     def __init__(
-        self, name: str, frame: str, waypoints: list[dict[str, float]]
+        self, name: str, frame: str, waypoints: list[dict[str, dict[str, float]]]
     ) -> None:
         """Create a new mission.
-
-        Example:
-            >>> mission = Mission(
-            ...     name="my_awesome_mission",
-            ...     frame="map",
-            ...     waypoints=[
-            ...         {
-            ...             "x": 0.0,
-            ...             "y": 0.0,
-            ...             "z": 0.0,
-            ...             "roll": 0.0,
-            ...             "pitch": 0.0,
-            ...             "yaw": 0.0,
-            ...             "acceleration": 0.0,
-            ...             "velocity": 1.0,
-            ...         },
-            ...     ],
-            ... )
 
         Args:
             name: The unique mission name.
@@ -64,44 +46,81 @@ class Mission:
             )
 
         self.name = name
-        self.waypoints = [
-            self._create_waypoint_msg(frame, waypoint) for waypoint in waypoints
+
+        # Construct the joint trajectory
+        self.waypoints = MultiDOFJointTrajectory()
+        self.waypoints.header.frame_id = frame
+        self.waypoints.joint_names = ["end_effector"]
+        self.waypoints.points = [
+            self._create_waypoint_msg(waypoint) for waypoint in waypoints
         ]
 
     @staticmethod
-    def _create_waypoint_msg(frame: str, waypoint: dict[str, float]) -> Waypoint:
+    def _create_waypoint_msg(
+        waypoint: dict[str, dict[str, float]]
+    ) -> MultiDOFJointTrajectoryPoint:
         """Create a new Waypoint message from the JSON data.
 
         Args:
-            frame: The coordinate frame that the waypoint is defined in.
             waypoint: The waypoint definition.
 
         Returns:
-            A Waypoint ROS message.
+            A MultiDOFJointTrajectoryPoint message.
         """
-        msg = Waypoint()
+        point = MultiDOFJointTrajectoryPoint()
 
-        msg.pose.header.frame_id = frame
+        # Specify the end effector pose
+        transform = Transform()
 
-        msg.pose.pose.position.x = waypoint["x"]
-        msg.pose.pose.position.y = waypoint["y"]
-        msg.pose.pose.position.z = waypoint["z"]
+        transform.translation.x = waypoint["position"]["x"]
+        transform.translation.y = waypoint["position"]["y"]
+        transform.translation.z = waypoint["position"]["z"]
 
         (
-            msg.pose.pose.orientation.x,
-            msg.pose.pose.orientation.y,
-            msg.pose.pose.orientation.z,
-            msg.pose.pose.orientation.w,
+            transform.rotation.x,
+            transform.rotation.y,
+            transform.rotation.z,
+            transform.rotation.w,
         ) = R.from_euler(
-            "xyz", [waypoint["roll"], waypoint["pitch"], waypoint["yaw"]]
+            "xyz",
+            [
+                waypoint["position"]["roll"],
+                waypoint["position"]["pitch"],
+                waypoint["position"]["yaw"],
+            ],
         ).as_quat(
             False
         )
 
-        msg.acceleration = waypoint["acceleration"]
-        msg.velocity = waypoint["velocity"]
+        point.transforms.append(transform)  # type: ignore
 
-        return msg
+        # Specify the end effector velocity
+        velocity = Twist()
+
+        velocity.linear.x = waypoint["velocity"]["x"]
+        velocity.linear.y = waypoint["velocity"]["y"]
+        velocity.linear.z = waypoint["velocity"]["z"]
+
+        velocity.angular.x = waypoint["velocity"]["rx"]
+        velocity.angular.y = waypoint["velocity"]["ry"]
+        velocity.angular.z = waypoint["velocity"]["rz"]
+
+        point.velocities.append(velocity)  # type: ignore
+
+        # Specify the end effector acceleration
+        acceleration = Twist()
+
+        acceleration.linear.x = waypoint["acceleration"]["x"]
+        acceleration.linear.y = waypoint["acceleration"]["y"]
+        acceleration.linear.z = waypoint["acceleration"]["z"]
+
+        acceleration.angular.x = waypoint["acceleration"]["rx"]
+        acceleration.angular.y = waypoint["acceleration"]["ry"]
+        acceleration.angular.z = waypoint["acceleration"]["rz"]
+
+        point.accelerations.append(acceleration)  # type: ignore
+
+        return point
 
 
 class MissionLibrary:

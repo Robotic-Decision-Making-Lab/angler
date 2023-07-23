@@ -13,6 +13,6 @@ geometry_msgs/Pose current_pose
 geometry_msgs/Pose goal_pose
 ---
 # Return a task-plan that the UVMS should execute.
-angler_msgs/Waypoint[] mission
+trajectory_msgs/MultiDOFJointTrajectory mission
 ---
 # No feedback is provided.

@@ -3,24 +3,57 @@
   "frame": "map",
   "waypoints": [
     {
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0,
-      "roll": 0.0,
-      "pitch": 0.0,
-      "yaw": 0.0,
-      "acceleration": 0.0,
-      "velocity": 1.0
+      "transform": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      },
+      "velocity": {
+        "x": 0.5,
+        "y": 0.0,
+        "z": 0.0,
+        "rx": 0.0,
+        "ry": 0.0,
+        "rz": 0.0
+      },
+      "acceleration": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "rx": 0.0,
+        "ry": 0.0,
+        "rz": 0.0
+      }
     },
     {
-      "x": 1.0,
-      "y": 0.0,
-      "z": 0.0,
-      "roll": 0.0,
-      "pitch": 0.0,
-      "yaw": 0.0,
-      "acceleration": 0.0,
-      "velocity": 1.0
+      "joint": "end_effector",
+      "transform": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      },
+      "velocity": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "rx": 0.0,
+        "ry": 0.0,
+        "rz": 0.0
+      },
+      "acceleration": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "rx": 0.0,
+        "ry": 0.0,
+        "rz": 0.0
+      }
     }
   ]
 }

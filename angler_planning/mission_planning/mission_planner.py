@@ -27,9 +27,9 @@ from geometry_msgs.msg import PoseStamped
 from mission_planning.missions.mission_library import MissionLibrary as ml
 from rclpy.action import ActionServer
 from rclpy.node import Node
+from trajectory_msgs.msg import MultiDOFJointTrajectory
 
 from angler_msgs.action import PlanMission
-from angler_msgs.msg import Waypoint
 
 
 class MissionPlanner(Node, ABC):
@@ -87,7 +87,7 @@ class MissionPlanner(Node, ABC):
     @abstractmethod
     def plan(
         self, start_pose: PoseStamped, goal_pose: PoseStamped, timeout: float
-    ) -> list[Waypoint]:
+    ) -> MultiDOFJointTrajectory:
         """Plan a sequence of waypoints from the start pose to the goal pose.
 
         Args:
@@ -144,7 +144,7 @@ class PrePlannedMissionPlanner(MissionPlanner):
 
     def plan(
         self, start_pose: PoseStamped, goal_pose: PoseStamped, timeout: float
-    ) -> list[Waypoint]:
+    ) -> MultiDOFJointTrajectory:
         """Load a pre-planned mission.
 
         Args:

@@ -18,10 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from tpik.tasks import TaskHierarchy
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -35,7 +35,7 @@ def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
         The nullspace of the augmented Jacobian.
     """
     return (
-        np.eye(augmented_jacobian.shape[0], augmented_jacobian.shape[1])
+        np.eye(augmented_jacobian.shape[0])
         - np.linalg.pinv(augmented_jacobian) @ augmented_jacobian
     )
 
@@ -67,6 +67,12 @@ class TPIK(Node):
     def __init__(self) -> None:
         """Create a new TPIK node."""
         super().__init__("tpik")
+
+        tasks = TaskHierarchy()
+
+        tasks.load_hierarchy_from_path(
+            "/workspaces/angler/angler_description/config/tasks.yaml"
+        )
 
 
 def main(args: list[str] | None = None):

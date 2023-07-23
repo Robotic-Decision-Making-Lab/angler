@@ -10,20 +10,15 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 set(action_files
   "action/PlanMission.action"
 )
 
-set(msg_files
-  "msg/Waypoint.msg"
-)
-
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files} ${action_files}
-  DEPENDENCIES builtin_interfaces std_msgs geometry_msgs action_msgs nav_msgs sensor_msgs
+  DEPENDENCIES builtin_interfaces std_msgs geometry_msgs action_msgs trajectory_msgs
 )
 
 if(BUILD_TESTING)
