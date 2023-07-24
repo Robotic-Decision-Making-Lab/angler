@@ -1,41 +1,40 @@
-- task: "joint_limit"
-  type: "set"
+- task: "joint_limit_set"
+  priority: 1
+  upper: 0.0
+  lower: 0.0
+  activation_threshold: 0.0
+  deactivation_threshold: 0.0
+  gain: 0.0
   joint: 6  # axis e
+
+- task: "joint_limit_set"
   priority: 1
   upper: 0.0
   lower: 0.0
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-
-- task: "joint_limit"
   joint: 7  # axis d
+
+- task: "joint_limit_set"
   priority: 1
   upper: 0.0
   lower: 0.0
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-
-- task: "joint_limit"
   joint: 8  # axis c
+
+- task: "joint_limit_set"
   priority: 1
   upper: 0.0
   lower: 0.0
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-
-- task: "joint_limit"
   joint: 9  # axis b
-  priority: 1
-  upper: 0.0
-  lower: 0.0
-  activation_threshold: 0.0
-  deactivation_threshold: 0.0
-  gain: 0.0
 
-- task: "joint_limit"
+- task: "joint_limit_set"
   joint: 2  # Z-axis (depth)
   priority: 1
   upper: 0.0
@@ -44,25 +43,28 @@
   deactivation_threshold: 0.0
   gain: 0.0
 
-- task: "collision_plane"
+- task: "collision_plane_set"
   priority: 1
   upper: 0.0
   lower: 0.0
-  p1: [0.1, 0.1, 0.1]
-  p2: [0.1, 0.1, 0.1]
-  p3: [0.1, 0.1, 0.1]
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
+  p1: [0.1, 0.1, 0.1]
+  p2: [0.1, 0.1, 0.1]
+  p3: [0.1, 0.1, 0.1]
 
-- task: "end_effector_pose"
+- task: "end_effector_pose_eq"
   priority: 2
   gain: 0.0
 
-- task: "vehicle_roll_pitch"
+- task: "vehicle_roll_pitch_eq"
   priority: 3
   gain: 0.0
+  roll: 0.0
+  pitch: 0.0
 
-- task: "vehicle_yaw"
+- task: "vehicle_yaw_eq"
   priority: 4
   gain: 0.0
+  yaw: 0.0

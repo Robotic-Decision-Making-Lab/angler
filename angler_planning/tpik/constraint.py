@@ -18,10 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from abc import ABC, abstractmethod
+
 import numpy as np
 
 
-class Constraint:
+class Constraint(ABC):
     """Base class for defining a constraint."""
 
     def __init__(
@@ -43,7 +45,31 @@ class Constraint:
         self.priority = priority
         self.jacobian: np.ndarray | None = None
 
-    def calculate_reference(
+    @abstractmethod
+    def calculate_jacobian(self, *args, **kwargs) -> np.ndarray:
+        """Calculate the Jacobian for a constraint.
+
+        Raises:
+            NotImplementedError: This method has not yet been implemented.
+
+        Returns:
+            The task Jacobian.
+        """
+        raise NotImplementedError("This method has not yet been implemented!")
+
+    @abstractmethod
+    def calculate_reference(self, *args, **kwargs) -> np.ndarray:
+        """Calculate the reference signal for a constraint.
+
+        Raises:
+            NotImplementedError: This method has not yet been implemented.
+
+        Returns:
+            The constraint reference signal.
+        """
+        raise NotImplementedError("This method has not yet been implemented!")
+
+    def _calculate_reference(
         self, feedforward: np.ndarray, error: np.ndarray
     ) -> np.ndarray:
         """Calculate the reference signal for a task.

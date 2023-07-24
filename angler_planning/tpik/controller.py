@@ -21,13 +21,13 @@
 import kinpy
 import numpy as np
 import rclpy
-import xacro
 from moveit_msgs.msg import RobotState, RobotTrajectory
 from rclpy.node import Node
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_broadcaster import TransformBroadcaster
 from tf2_ros.transform_listener import TransformListener
+from tpik.hierarchy import TaskHierarchy
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -74,11 +74,11 @@ class TPIK(Node):
         """Create a new TPIK node."""
         super().__init__("tpik")
 
-        # tasks = TaskHierarchy()
+        hierarchy = TaskHierarchy()
 
-        # tasks.load_hierarchy_from_path(
-        #     "/workspaces/angler/angler_description/config/tasks.yaml"
-        # )
+        hierarchy.load_constraints_from_path(
+            "/workspaces/angler/angler_description/config/tasks.yaml"
+        )
 
         self.declare_parameter("robot_description", "")
         self.declare_parameter("manipulator_base_link", "alpha_base_link")
