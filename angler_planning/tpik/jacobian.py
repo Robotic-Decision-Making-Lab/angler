@@ -49,67 +49,6 @@ def point_to_array(point: Point | Vector3) -> np.ndarray:
     return np.array([point.x, point.y, point.z]).reshape((3, 1))
 
 
-def calculate_vehicle_angular_velocity_jacobian(
-    rot_map_to_base: Quaternion,
-) -> np.ndarray:
-    """Calculate the angular velocity Jacobian for the vehicle.
-
-    This is defined by Gianluca Antonelli in his textbook "Underwater Robotics" in
-    Equation 2.3, and is denoted there as "J_k,o".
-
-    Args:
-        rot_map_to_base: The quaternion describing the rotation from the inertial frame
-            to the vehicle-fixed frame (map -> base_link).
-
-    Returns:
-        The vehicle's angular velocity Jacobian.
-    """
-    rot = quaternion_to_rotation(rot_map_to_base)
-    roll, pitch, _ = rot.as_euler("xyz")
-
-    return np.array(
-        [
-            [1, 0, -np.sin(pitch)],
-            [0, np.cos(roll), np.cos(pitch) * np.sin(roll)],
-            [0, -np.sin(roll), np.cos(pitch) * np.cos(roll)],
-        ]  # type: ignore
-    )
-
-
-def calculate_manipulator_jacobian(
-    serial_chain: Any, joint_angles: np.ndarray
-) -> np.ndarray:
-    """Generate the manipulator Jacobian using a kinpy serial chain.
-
-    Args:
-        serial_chain: The kinpy serial chain.
-        joint_angles: The current joint angles.
-
-    Returns:
-        The manipulator Jacobian matrix.
-    """
-    return np.array(serial_chain.jacobian(joint_angles))
-
-
-def calculate_vehicle_orientation_jacobian(
-    rot_base_to_map: Transform, num_manipulator_joints: int
-):
-    """Calculate the vehicle orientation Jacobian.
-
-    Args:
-        rot_base_to_map: The quaternion describing the rotation from the vehicle-fixed
-            frame to the inertial frame (base_link -> map).
-        num_manipulator_joints: The total number of joints that the manipulator has.
-
-    Returns:
-        The vehicle orientation Jacobian.
-    """
-    J = np.zeros((3, 6 + num_manipulator_joints))
-    J[:, 3:6] = quaternion_to_rotation(rot_base_to_map.rotation).as_matrix()
-
-    return J
-
-
 def calculate_vehicle_roll_pitch_jacobian(
     rot_map_to_base: Quaternion, num_manipulator_joints: int
 ) -> np.ndarray:
@@ -259,7 +198,7 @@ def calculate_vehicle_manipulator_collision_avoidance_jacobian(
         np.cross((p2 - p1), (p3 - p1))  # type: ignore
     )
 
-    # Get the manipulator's vehicle Jacobian
+    # Get the manipulator's Jacobian
     J_pos = calculate_manipulator_jacobian(serial_chain, joint_angles)[:3, :]
 
     J = np.zeros((3, 6 + len(joint_angles)))

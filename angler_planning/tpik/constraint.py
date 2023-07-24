@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 import numpy as np
 
@@ -43,11 +44,10 @@ class Constraint(ABC):
         self.name = name
         self.gain = gain
         self.priority = priority
-        self.jacobian: np.ndarray | None = None
 
-    @abstractmethod
-    def calculate_jacobian(self, *args, **kwargs) -> np.ndarray:
-        """Calculate the Jacobian for a constraint.
+    @property
+    def jacobian(self) -> np.ndarray:
+        """Get the Jacobian for a constraint.
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
@@ -57,15 +57,24 @@ class Constraint(ABC):
         """
         raise NotImplementedError("This method has not yet been implemented!")
 
-    @abstractmethod
-    def calculate_reference(self, *args, **kwargs) -> np.ndarray:
-        """Calculate the reference signal for a constraint.
+    @property
+    def reference(self) -> np.ndarray:
+        """Get the reference signal for a constraint.
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
 
         Returns:
             The constraint reference signal.
+        """
+        raise NotImplementedError("This method has not yet been implemented!")
+
+    @abstractmethod
+    def update(self, *args, **kwargs) -> None:
+        """Update the constraint context.
+
+        Raises:
+            NotImplementedError: This method has not yet been implemented.
         """
         raise NotImplementedError("This method has not yet been implemented!")
 
@@ -98,7 +107,7 @@ class EqualityConstraint(Constraint):
             gain: The constraint gain to use for closed-loop control.
             priority: The constraint priority.
         """
-        super().__init__(name, gain, priority)
+        super().__init__(f"{name}_eq", gain, priority)
 
 
 class SetConstraint(Constraint):
@@ -126,7 +135,7 @@ class SetConstraint(Constraint):
             gain: The constraint gain to use for closed-loop control.
             priority: The constraint priority.
         """
-        super().__init__(name, gain, priority)
+        super().__init__(f"{name}_set", gain, priority)
 
         self.range = (lower, upper)
         self.activation_threshold = activation_threshold
