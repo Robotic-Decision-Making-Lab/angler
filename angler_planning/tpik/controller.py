@@ -18,10 +18,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import kinpy
 import numpy as np
 import rclpy
+import xacro
+from moveit_msgs.msg import RobotState, RobotTrajectory
 from rclpy.node import Node
-from tpik.tasks import TaskHierarchy
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_broadcaster import TransformBroadcaster
+from tf2_ros.transform_listener import TransformListener
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -68,11 +74,77 @@ class TPIK(Node):
         """Create a new TPIK node."""
         super().__init__("tpik")
 
-        tasks = TaskHierarchy()
+        # tasks = TaskHierarchy()
 
-        tasks.load_hierarchy_from_path(
-            "/workspaces/angler/angler_description/config/tasks.yaml"
+        # tasks.load_hierarchy_from_path(
+        #     "/workspaces/angler/angler_description/config/tasks.yaml"
+        # )
+
+        self.declare_parameter("robot_description", "")
+        self.declare_parameter("manipulator_base_link", "alpha_base_link")
+        self.declare_parameter("manipulator_end_link", "alpha_ee_base_link")
+
+        # TF2
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # Subscribers
+        self.robot_state_sub = self.create_subscription(
+            RobotState, "/angler/state", self.robot_state_cb, 1
         )
+        self.joint_trajectory_sub = self.create_subscription(
+            RobotTrajectory,
+            "/angler/reference_trajectory/",
+            self.update_trajectory_cb,
+            1,
+        )
+
+        # Publishers
+        self.robot_trajectory_pub = self.create_publisher(
+            RobotTrajectory, "/angler/robot_trajectory", 1
+        )
+
+        # Read the robot description to a serial chain
+        robot_description = (
+            self.get_parameter("robot_description").get_parameter_value().string_value
+        )
+        end_link = (
+            self.get_parameter("manipulator_end_link")
+            .get_parameter_value()
+            .string_value
+        )
+        start_link = (
+            self.get_parameter("manipulator_base_link")
+            .get_parameter_value()
+            .string_value
+        )
+
+        self.serial_chain = kinpy.build_serial_chain_from_urdf(
+            robot_description,
+            end_link_name=end_link,
+            root_link_name=start_link,
+        )
+
+        self.num_manipulator_joints = len(self.serial_chain.get_joint_parameter_names())
+
+    def robot_state_cb(self, state: RobotState) -> None:
+        ...
+
+    def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
+        ...
+
+    def update_context(self) -> None:
+        ...
+
+    def update(self) -> None:
+        def calculate_system_velocity(
+            task: int,
+            total_tasks: int,
+            nullspace: np.ndarray,
+            system_velocities: np.ndarray,
+        ):
+            # Get the jacobian
+            J = np.zeros((6, 6))
 
 
 def main(args: list[str] | None = None):

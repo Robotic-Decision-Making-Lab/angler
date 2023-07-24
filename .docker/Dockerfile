@@ -31,7 +31,7 @@ RUN apt-get -q update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages which aren't available as rosdeps
+# Install the Python requirements that aren't available as rosdeps
 RUN python3 -m pip install -r $(pwd)/src/angler/requirements-build.txt
 
 # Install gstreamer
@@ -191,7 +191,7 @@ WORKDIR $ROS_UNDERLAY/..
 COPY . src/angler
 
 # Install debugging/linting Python packages
-RUN python3 -m pip install -r $(pwd)/src/angler/requirements-devel.txt
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-dev.txt
 
 RUN apt-get -q update \
     && apt-get -q -y upgrade \
@@ -210,17 +210,19 @@ RUN apt-get -q update \
     iputils-ping \
     net-tools \
     gdb \
+    nano \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY .docker/entrypoints/dev.sh /
 
+# WARNING: This is a temporary solution for disabling the setuputils installation warning
+ENV PYTHONWARNINGS="ignore"
+
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     # Expose the environment variables to the non-root user
     && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc \
-    # Suppress setup utils warning
-    && echo "PYTHONWARNINGS='ignore:setup.py install is deprecated::setuptools.command.install'; export PYTHONWARNINGS" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc

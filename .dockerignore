@@ -9,4 +9,4 @@
 !angler.repos
 !.docker/entrypoints
 !requirements-build.txt
-!requirements-devel.txt
+!requirements-dev.txt
