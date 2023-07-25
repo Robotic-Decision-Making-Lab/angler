@@ -19,54 +19,54 @@
 # THE SOFTWARE.
 
 import os
-from collections import namedtuple
 from typing import Any
 
-import tpik.jacobian as J
 import yaml  # type: ignore
-from tpik.constraint import EqualityConstraint, SetConstraint
-
-TaskWrapper = namedtuple("TaskWrapper", ["name", "task", "jacobian_func"])
-
+from tpik.constraint import Constraint
+from tpik.tasks import (
+    EndEffectorPose,
+    JointLimit,
+    ManipulatorConfiguration,
+    VehicleOrientation,
+    VehicleRollPitch,
+    VehicleYaw,
+)
 
 _task_library = {
-    "joint_limit_set": (
-        SetConstraint,
-        J.calculate_joint_limit_jacobian,
-    ),
-    "vehicle_orientation_eq": (
-        EqualityConstraint,
-        J.calculate_vehicle_orientation_jacobian,
-    ),
-    "vehicle_roll_pitch_eq": (
-        EqualityConstraint,
-        J.calculate_vehicle_roll_pitch_jacobian,
-    ),
-    "vehicle_yaw_eq": (
-        EqualityConstraint,
-        J.calculate_vehicle_yaw_jacobian,
-    ),
-    "end_effector_pose_eq": (
-        EqualityConstraint,
-        J.calculate_uvms_jacobian,
-    ),
-    "joint_config_eq": (
-        EqualityConstraint,
-        J.calculate_joint_configuration_jacobian,
-    ),
-    "collision_plane_set": (
-        EqualityConstraint,
-        J.calculate_vehicle_manipulator_collision_avoidance_jacobian,
-    ),
+    task.name: task  # type: ignore
+    for task in [
+        EndEffectorPose,
+        JointLimit,
+        ManipulatorConfiguration,
+        VehicleOrientation,
+        VehicleRollPitch,
+        VehicleYaw,
+    ]
 }
 
 
 class TaskHierarchy:
-    def __init__(self) -> None:
-        self._constraints: list[TaskWrapper] = []
-        self.hierarchy: list[TaskWrapper] = []
+    """Interface for loading and managing a task hierarchy."""
 
-    def load_constraints_from_path(self, filepath: str):
+    def __init__(self, constraints: list[Constraint]) -> None:
+        """Create a new task hierarchy."""
+        self.constraints = constraints
+        self.activated_task_hierarchy: list[Constraint] = []
+
+    def update_task_hierarchy(self):
+        ...
+
+    @staticmethod
+    def load_constraints_from_path(filepath: str):
+        """Load the desired constraints from a YAML configuration file.
+
+        Args:
+            filepath: The full path to the YAML configuration file.
+
+        Raises:
+            ValueError: Invalid file path provide.
+            ValueError: Invalid task configuration provided.
+        """
         if not os.path.isfile(filepath):
             raise ValueError(
                 "The provided task configuration file is not valid. Please ensure that"
@@ -76,17 +76,21 @@ class TaskHierarchy:
         with open(filepath, encoding="utf-8") as task_f:
             hierarchy: list[dict[str, Any]] = yaml.safe_load(task_f)
 
-            for task in hierarchy:
-                name = task.pop("task")
+            constraints: list[Constraint] = []
+
+            for constraint in hierarchy:
+                name = constraint.pop("task")
 
                 if name is None or name not in _task_library.keys():
                     raise ValueError(
                         "The provided task hierarchy contains an invalid task"
-                        f" name: {name}"
+                        f" type: {name}"
                     )
 
-                wrapper = TaskWrapper(
-                    name, _task_library[name][0](**task), _task_library[name][1]
+                task = _task_library[name].create_task_from_params(  # type: ignore
+                    **constraint,
                 )
 
-                self._constraints.append(wrapper)
+                constraints.append(task)
+
+        return TaskHierarchy(constraints)

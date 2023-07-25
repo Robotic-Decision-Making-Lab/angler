@@ -19,7 +19,6 @@
 # THE SOFTWARE.
 
 from abc import ABC, abstractmethod
-from typing import Any
 
 import numpy as np
 
@@ -27,21 +26,20 @@ import numpy as np
 class Constraint(ABC):
     """Base class for defining a constraint."""
 
+    # The name of the constraint. This is used to reference the constraint at launch.
+    name: str = ""
+
     def __init__(
         self,
-        name: str,
         gain: float,
         priority: float,
     ) -> None:
         """Create a new constraint.
 
         Args:
-            name: The name of the constraint. This is used to reference the constraint
-                during launch.
             gain: The constraint gain.
             priority: The constraint priority in the constraint priority list.
         """
-        self.name = name
         self.gain = gain
         self.priority = priority
 
@@ -58,7 +56,7 @@ class Constraint(ABC):
         raise NotImplementedError("This method has not yet been implemented!")
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Get the reference signal for a constraint.
 
         Raises:
@@ -78,36 +76,18 @@ class Constraint(ABC):
         """
         raise NotImplementedError("This method has not yet been implemented!")
 
-    def _calculate_reference(
-        self, feedforward: np.ndarray, error: np.ndarray
-    ) -> np.ndarray:
-        """Calculate the reference signal for a task.
-
-        The reference signal is calculated using: feedforward + gain * error
-
-        Args:
-            feedforward: The reference signal feedforward term. This is typically the
-                dynamics of the task value.
-            error: The current task error.
-
-        Returns:
-            The task reference signal.
-        """
-        return feedforward + self.gain @ error
-
 
 class EqualityConstraint(Constraint):
     """Constraint which drives the system to a single value."""
 
-    def __init__(self, name: str, gain: float, priority: float) -> None:
+    def __init__(self, gain: float, priority: float) -> None:
         """Create a new equality constraint.
 
         Args:
-            name: The name of the constraint.
             gain: The constraint gain to use for closed-loop control.
             priority: The constraint priority.
         """
-        super().__init__(f"{name}_eq", gain, priority)
+        super().__init__(gain, priority)
 
 
 class SetConstraint(Constraint):
@@ -115,7 +95,6 @@ class SetConstraint(Constraint):
 
     def __init__(
         self,
-        name: str,
         upper: float,
         lower: float,
         activation_threshold: float,
@@ -135,7 +114,7 @@ class SetConstraint(Constraint):
             gain: The constraint gain to use for closed-loop control.
             priority: The constraint priority.
         """
-        super().__init__(f"{name}_set", gain, priority)
+        super().__init__(gain, priority)
 
         self.range = (lower, upper)
         self.activation_threshold = activation_threshold

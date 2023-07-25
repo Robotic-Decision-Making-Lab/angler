@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
-from geometry_msgs.msg import Point, Pose, Quaternion, Transform, Vector3
+from geometry_msgs.msg import Point, Quaternion, Transform, Vector3
 from scipy.spatial.transform import Rotation as R
 from tpik.constraint import EqualityConstraint, SetConstraint
 
@@ -103,8 +103,9 @@ def calculate_manipulator_jacobian(
 class TaskFactory(ABC):
     """Base class for a class which implements the factory pattern."""
 
+    @staticmethod
     @abstractmethod
-    def create_task_from_params(self, *args, **kwargs) -> Any:
+    def create_task_from_params(*args, **kwargs) -> Any:
         """Create a new constraint from a configuration file.
 
         Raises:
@@ -119,6 +120,8 @@ class TaskFactory(ABC):
 class VehicleRollPitch(EqualityConstraint, TaskFactory):
     """Control the vehicle roll and pitch angles."""
 
+    name = "vehicle_roll_pitch_eq"
+
     def __init__(self, gain: float, priority: float) -> None:
         """Create a new vehicle roll pitch task.
 
@@ -126,15 +129,15 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, "vehicle_roll_pitch", gain, priority)
+        EqualityConstraint.__init__(self, gain, priority)
 
         self.desired_rot = np.zeros((2, 1))
         self.current_rot = np.zeros((2, 1))
         self.n_manipulator_joints = 0
         self.rot_map_to_base = Quaternion()
 
+    @staticmethod
     def create_task_from_params(
-        self,
         gain: float,
         priority: float,
         roll: float | None = None,
@@ -221,7 +224,7 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
         return J
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Calculate the reference signal for the vehicle roll-pitch task.
 
         Args:
@@ -231,13 +234,13 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
         Returns:
             The reference signal.
         """
-        return self._calculate_reference(
-            np.zeros((2, 1)), self.desired_rot - self.current_rot
-        )
+        return self.desired_rot - self.current_rot
 
 
 class VehicleYaw(EqualityConstraint, TaskFactory):
     """Control the vehicle yaw angle."""
+
+    name = "vehicle_yaw_eq"
 
     def __init__(self, gain: float, priority: float) -> None:
         """Create a new vehicle yaw task.
@@ -246,14 +249,16 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, "vehicle_yaw", gain, priority)
+        EqualityConstraint.__init__(self, gain, priority)
 
+        self.current_rot = np.zeros((1, 1))
         self.desired_rot = np.zeros((1, 1))
         self.rot_map_to_base = Quaternion()
         self.n_manipulator_joints = 0
 
+    @staticmethod
     def create_task_from_params(
-        self, gain: float, priority: float, yaw: float | None = None
+        gain: float, priority: float, yaw: float | None = None
     ) -> Any:
         """Create a new vehicle yaw task from a set of parameters..
 
@@ -297,7 +302,7 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
             ]
         )
         _, _, current_yaw = cr.as_euler("xyz")
-        self.current_rotation = np.array([current_yaw])
+        self.current_rot = np.array([current_yaw])
 
         if desired_rot is not None:
             dr = R.from_quat(
@@ -331,19 +336,19 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
         return J
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Calculate the reference signal for the vehicle yaw task.
 
         Returns:
             The reference signal.
         """
-        return self._calculate_reference(
-            np.zeros((2, 1)), self.desired_rot - self.current_rotation
-        )
+        return self.desired_rot - self.current_rot
 
 
 class VehicleOrientation(EqualityConstraint, TaskFactory):
     """Control the vehicle orientation."""
+
+    name = "vehicle_orientation_eq"
 
     def __init__(self, gain: float, priority: float) -> None:
         """Create a new vehicle orientation task.
@@ -352,15 +357,15 @@ class VehicleOrientation(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, "vehicle_orientation", gain, priority)
+        EqualityConstraint.__init__(self, gain, priority)
 
         self.current_rot = Quaternion()
         self.desired_rot = Quaternion()
         self.rot_base_to_map = Quaternion()
         self.n_manipulator_joints = 0
 
+    @staticmethod
     def create_task_from_params(
-        self,
         gain: float,
         priority: float,
         roll: float | None = None,
@@ -429,22 +434,21 @@ class VehicleOrientation(EqualityConstraint, TaskFactory):
         return J
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Calculate the reference signal for the vehicle orientation.
 
         Returns:
             The reference signal needed to move the vehicle to the desired orientation.
         """
-        return super()._calculate_reference(
-            np.zeros((3, 1)),
-            calculate_quaternion_error(self.desired_rot, self.current_rot)[:3].reshape(
-                (3, 1)
-            ),
-        )
+        return calculate_quaternion_error(self.desired_rot, self.current_rot)[
+            :3
+        ].reshape((3, 1))
 
 
 class EndEffectorPose(EqualityConstraint, TaskFactory):
     """Control the end-effector pose."""
+
+    name = "end_effector_pose_eq"
 
     def __init__(self, gain: float, priority: float) -> None:
         """Create a new end effector pose task.
@@ -453,18 +457,18 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, "end_effector_pose", gain, priority)
+        EqualityConstraint.__init__(self, gain, priority)
 
         self.serial_chain: Any | None = None
         self.joint_angles = np.zeros((1, 1))
         self.transform_map_to_base = Transform()
         self.transform_manipulator_base_to_base = Transform()
         self.transform_map_to_end_effector = Transform()
-        self.current_pose = Pose()
-        self.desired_pose = Pose()
+        self.current_pose = Transform()
+        self.desired_pose = Transform()
 
+    @staticmethod
     def create_task_from_params(
-        self,
         gain: float,
         priority: float,
         x: float | None = None,
@@ -498,15 +502,15 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
         task = EndEffectorPose(gain, priority)
 
         if None not in [x, y, z, roll, pitch, yaw]:
-            task.desired_pose.position.x = x
-            task.desired_pose.position.y = y
-            task.desired_pose.position.z = z
+            task.desired_pose.translation.x = x
+            task.desired_pose.translation.y = y
+            task.desired_pose.translation.z = z
 
             (
-                task.desired_pose.orientation.x,
-                task.desired_pose.orientation.y,
-                task.desired_pose.orientation.z,
-                task.desired_pose.orientation.w,
+                task.desired_pose.rotation.x,
+                task.desired_pose.rotation.y,
+                task.desired_pose.rotation.z,
+                task.desired_pose.rotation.w,
             ) = R.from_euler(
                 "xyz", [roll, pitch, yaw]  # type: ignore
             ).as_quat(
@@ -518,11 +522,11 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
     def update(
         self,
         joint_angles: np.ndarray,
-        current_pose: Pose,
+        current_pose: Transform,
         transform_manipulator_base_to_base: Transform,
         transform_map_to_end_effector: Transform,
         serial_chain: Any | None = None,
-        desired_pose: Pose | None = None,
+        desired_pose: Transform | None = None,
     ) -> None:
         """Update the current context of the end effector pose task.
 
@@ -540,8 +544,7 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
         self.current_pose = current_pose
 
         # The transformation from the map to base_link frame is just the current pose
-        self.transform_map_to_base.translation = current_pose.position
-        self.transform_map_to_base.rotation = current_pose.orientation
+        self.transform_map_to_base = current_pose
 
         self.transform_manipulator_base_to_base = transform_manipulator_base_to_base
         self.transform_map_to_end_effector = transform_map_to_end_effector
@@ -598,7 +601,7 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
         return J
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Calculate the reference signal for the controller.
 
         Returns:
@@ -607,22 +610,22 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
         """
         pos_error = np.array(
             [
-                self.desired_pose.position.x - self.current_pose.position.x,
-                self.desired_pose.position.y - self.current_pose.position.y,
-                self.desired_pose.position.z - self.current_pose.position.z,
+                self.desired_pose.translation.x - self.current_pose.translation.x,
+                self.desired_pose.translation.y - self.current_pose.translation.y,
+                self.desired_pose.translation.z - self.current_pose.translation.z,
             ]
         ).reshape((3, 1))
         ori_error = calculate_quaternion_error(
-            self.desired_pose.orientation, self.current_pose.orientation
+            self.desired_pose.rotation, self.current_pose.rotation
         )[:3].reshape((3, 1))
 
-        error = np.vstack((pos_error, ori_error))
-
-        return super()._calculate_reference(np.zeros((6, 1)), error)
+        return np.vstack((pos_error, ori_error))
 
 
 class JointLimit(SetConstraint, TaskFactory):
     """Limit a joint angle to a desired range."""
+
+    name = "joint_limit_set"
 
     def __init__(
         self,
@@ -646,13 +649,7 @@ class JointLimit(SetConstraint, TaskFactory):
             joint: The joint that the constraint applies to.
         """
         super().__init__(
-            "joint_limit_set",
-            upper,
-            lower,
-            activation_threshold,
-            deactivation_threshold,
-            gain,
-            priority,
+            upper, lower, activation_threshold, deactivation_threshold, gain, priority
         )
 
         self.joint = joint
@@ -660,8 +657,8 @@ class JointLimit(SetConstraint, TaskFactory):
         self.current_angle = 0.0
         self.desired_angle = 0.0
 
+    @staticmethod
     def create_task_from_params(
-        self,
         upper: float,
         lower: float,
         activation_threshold: float,
@@ -694,15 +691,15 @@ class JointLimit(SetConstraint, TaskFactory):
     def update(
         self,
         current_angle: float,
-        desired_angle: float,
+        desired_angle: float | None = None,
         n_manipulator_joints: int | None = None,
     ) -> None:
         """Update the current context of the joint limit task.
 
         Args:
             current_angle: The current joint angle.
-            desired_angle: The desired joint angle. This is required because the task
-                will be activated with a desired angle.
+            desired_angle: The desired joint angle. This will be configured by the
+                task hierarchy.
             n_manipulator_joints: The total number of joints that the manipulator has.
                 Defaults to None.
         """
@@ -730,19 +727,19 @@ class JointLimit(SetConstraint, TaskFactory):
         return J
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Calculate the reference signal for the joint limit task.
 
         Returns:
             The reference signal to use to drive the joint back to a safe range.
         """
-        return super()._calculate_reference(
-            np.zeros((1, 1)), np.array([self.desired_angle - self.current_angle])
-        )
+        return np.array([self.desired_angle - self.current_angle])
 
 
 class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
     """Control the joint angles of the manipulator."""
+
+    name = "manipulator_configuration_eq"
 
     def __init__(self, gain: float, priority: float) -> None:
         """Create a new manipulator configuration task.
@@ -751,14 +748,15 @@ class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, "manipulator_configuration", gain, priority)
+        EqualityConstraint.__init__(self, gain, priority)
 
         self.current_joint_angles = np.zeros((1, 1))
         self.desired_joint_angles = np.zeros((1, 1))
         self.n_manipulator_joints = 0
 
+    @staticmethod
     def create_task_from_params(
-        self, gain: float, priority: float, desired_joint_angles: list[float] | None
+        gain: float, priority: float, desired_joint_angles: list[float] | None
     ) -> Any:
         """Create a new manipulator configuration task from a set of parameters.
 
@@ -812,12 +810,10 @@ class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
         return J
 
     @property
-    def reference(self) -> np.ndarray:
+    def error(self) -> np.ndarray:
         """Calculate the reference for the joint configuration task.
 
         Returns:
             The joint configuration reference signal.
         """
-        return super()._calculate_reference(
-            np.zeros((6, 1)), self.desired_joint_angles - self.current_joint_angles
-        )
+        return self.desired_joint_angles - self.current_joint_angles

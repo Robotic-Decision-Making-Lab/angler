@@ -46,6 +46,13 @@ def generate_launch_description() -> LaunchDescription:
             output="screen",
             parameters=[LaunchConfiguration("config_filepath")],
         ),
+        Node(
+            package="angler_planning",
+            executable="tpik",
+            name="tpik",
+            output="screen",
+            parameters=[LaunchConfiguration("config_filepath")],
+        ),
     ]
 
     return LaunchDescription(args + nodes)

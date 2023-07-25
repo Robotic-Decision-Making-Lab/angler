@@ -5,7 +5,7 @@
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-  joint: 6  # axis e
+  joint: 6  # axis b
 
 - task: "joint_limit_set"
   priority: 1
@@ -14,7 +14,7 @@
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-  joint: 7  # axis d
+  joint: 7  # axis c
 
 - task: "joint_limit_set"
   priority: 1
@@ -23,7 +23,7 @@
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-  joint: 8  # axis c
+  joint: 8  # axis d
 
 - task: "joint_limit_set"
   priority: 1
@@ -32,7 +32,7 @@
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-  joint: 9  # axis b
+  joint: 9  # axis e
 
 - task: "joint_limit_set"
   joint: 2  # Z-axis (depth)
@@ -42,17 +42,6 @@
   activation_threshold: 0.0
   deactivation_threshold: 0.0
   gain: 0.0
-
-- task: "collision_plane_set"
-  priority: 1
-  upper: 0.0
-  lower: 0.0
-  activation_threshold: 0.0
-  deactivation_threshold: 0.0
-  gain: 0.0
-  p1: [0.1, 0.1, 0.1]
-  p2: [0.1, 0.1, 0.1]
-  p3: [0.1, 0.1, 0.1]
 
 - task: "end_effector_pose_eq"
   priority: 2

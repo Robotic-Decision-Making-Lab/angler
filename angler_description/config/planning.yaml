@@ -1,3 +1,9 @@
 preplanned_mission_planner:
   ros__parameters:
     mission_name: "straight"
+
+tpik:
+  ros__parameters:
+    constraint_config_path: "/workspaces/angler/angler_description/config/tasks.yaml"
+    manipulator_base_link: "alpha_base_link"
+    manipulator_end_link: "alpha_ee_base_link"
