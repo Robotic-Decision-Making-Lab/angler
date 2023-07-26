@@ -18,11 +18,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import itertools
 import os
 from typing import Any
 
+import numpy as np
 import yaml  # type: ignore
-from tpik.constraint import Constraint
+from tpik.constraint import EqualityTask, SetTask, Task
 from tpik.tasks import (
     EndEffectorPose,
     JointLimit,
@@ -48,17 +50,68 @@ _task_library = {
 class TaskHierarchy:
     """Interface for loading and managing a task hierarchy."""
 
-    def __init__(self, constraints: list[Constraint]) -> None:
+    def __init__(self, tasks: list[Task]) -> None:
         """Create a new task hierarchy."""
-        self.constraints = constraints
-        self.activated_task_hierarchy: list[Constraint] = []
+        # Make sure that the tasks are sorted according to their priority
+        self.tasks = sorted(tasks, key=lambda task: task.priority)
 
-    def update_task_hierarchy(self):
-        ...
+    @property
+    def active_task_hierarchy(self) -> list[Task]:
+        """Get the set of activated tasks, ordered from highest priority to lowest.
+
+        Returns:
+            The active task hierarchy.
+        """
+        return [
+            task
+            for task in self.tasks
+            if (isinstance(task, SetTask) and task.active)
+            or isinstance(task, EqualityTask)
+        ]
+
+    @property
+    def modes(self) -> list[list[Task]]:
+        """Get the set of all potential mode combinations for the active task hierarchy.
+
+        Returns:
+            The active task hierarchy modes.
+        """
+        active_tasks = self.active_task_hierarchy
+
+        n_set_tasks = len([x for x in active_tasks if isinstance(x, SetTask)])
+
+        # Get all possible combinations of modes
+        combinations = list(itertools.product([0, 1], repeat=n_set_tasks))
+
+        # Sort the combinations according to their restrictiveness: those with the most
+        # 1's will appear at lower indices
+        combinations = sorted(combinations, key=lambda row: -np.sum(row))
+
+        hierarchy_combinations = []
+
+        # Generate a set of all potential hierarchy combinations using the mode map
+        for combination in combinations:
+            # Keep track of which set-based task we are referencing
+            set_task_idx = 0
+
+            hierarchy: list[Task] = []
+
+            for task in active_tasks:
+                if isinstance(task, SetTask):
+                    set_task_idx += 1
+                    if combination[set_task_idx]:
+                        hierarchy.append(task)
+                elif isinstance(task, EqualityTask):
+                    hierarchy.append(task)
+
+            # hierarchy
+            hierarchy_combinations.append(hierarchy)
+
+        return hierarchy_combinations
 
     @staticmethod
-    def load_constraints_from_path(filepath: str):
-        """Load the desired constraints from a YAML configuration file.
+    def load_tasks_from_path(filepath: str):
+        """Load the desired tasks from a YAML configuration file.
 
         Args:
             filepath: The full path to the YAML configuration file.
@@ -76,10 +129,10 @@ class TaskHierarchy:
         with open(filepath, encoding="utf-8") as task_f:
             hierarchy: list[dict[str, Any]] = yaml.safe_load(task_f)
 
-            constraints: list[Constraint] = []
+            tasks: list[Task] = []
 
-            for constraint in hierarchy:
-                name = constraint.pop("task")
+            for task in hierarchy:
+                name = task.pop("task")
 
                 if name is None or name not in _task_library.keys():
                     raise ValueError(
@@ -87,10 +140,10 @@ class TaskHierarchy:
                         f" type: {name}"
                     )
 
-                task = _task_library[name].create_task_from_params(  # type: ignore
-                    **constraint,
+                constraint = _task_library[name].create_task_from_params(  # type: ignore # noqa
+                    **task,
                 )
 
-                constraints.append(task)
+                tasks.append(constraint)
 
-        return TaskHierarchy(constraints)
+        return TaskHierarchy(tasks)

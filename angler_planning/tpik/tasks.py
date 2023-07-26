@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 from geometry_msgs.msg import Point, Quaternion, Transform, Vector3
 from scipy.spatial.transform import Rotation as R
-from tpik.constraint import EqualityConstraint, SetConstraint
+from tpik.constraint import EqualityTask, SetTask
 
 
 def quaternion_to_rotation(quat: Quaternion) -> R:
@@ -117,7 +117,7 @@ class TaskFactory(ABC):
         raise NotImplementedError("This method has not yet been implemented!")
 
 
-class VehicleRollPitch(EqualityConstraint, TaskFactory):
+class VehicleRollPitch(EqualityTask, TaskFactory):
     """Control the vehicle roll and pitch angles."""
 
     name = "vehicle_roll_pitch_eq"
@@ -129,10 +129,10 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, gain, priority)
+        EqualityTask.__init__(self, gain, priority)
 
-        self.desired_rot = np.zeros((2, 1))
-        self.current_rot = np.zeros((2, 1))
+        self.desired_value = np.zeros((2, 1))
+        self.current_value = np.zeros((2, 1))
         self.n_manipulator_joints = 0
         self.rot_map_to_base = Quaternion()
 
@@ -157,7 +157,7 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
         task = VehicleRollPitch(gain, priority)
 
         if None not in [roll, pitch]:
-            task.desired_rot = np.array([roll, pitch]).reshape((2, 1))
+            task.desired_value = np.array([roll, pitch]).reshape((2, 1))
 
         return task
 
@@ -189,7 +189,7 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
             ]
         )
         current_roll, current_pitch, _ = cr.as_euler("xyz")
-        self.current_rot = np.array([current_roll, current_pitch]).reshape((2, 1))
+        self.current_value = np.array([current_roll, current_pitch]).reshape((2, 1))
 
         if desired_rot is not None:
             dr = R.from_quat(
@@ -234,10 +234,10 @@ class VehicleRollPitch(EqualityConstraint, TaskFactory):
         Returns:
             The reference signal.
         """
-        return self.desired_rot - self.current_rot
+        return self.desired_value - self.current_value  # type: ignore
 
 
-class VehicleYaw(EqualityConstraint, TaskFactory):
+class VehicleYaw(EqualityTask, TaskFactory):
     """Control the vehicle yaw angle."""
 
     name = "vehicle_yaw_eq"
@@ -249,10 +249,10 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, gain, priority)
+        EqualityTask.__init__(self, gain, priority)
 
-        self.current_rot = np.zeros((1, 1))
-        self.desired_rot = np.zeros((1, 1))
+        self.current_value = np.zeros((1, 1))
+        self.desired_value = np.zeros((1, 1))
         self.rot_map_to_base = Quaternion()
         self.n_manipulator_joints = 0
 
@@ -260,7 +260,7 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
     def create_task_from_params(
         gain: float, priority: float, yaw: float | None = None
     ) -> Any:
-        """Create a new vehicle yaw task from a set of parameters..
+        """Create a new vehicle yaw task from a set of parameters.
 
         Args:
             gain: The task gain.
@@ -270,7 +270,7 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
         task = VehicleYaw(gain, priority)
 
         if yaw is not None:
-            task.desired_rot = np.array([yaw])
+            task.desired_value = np.array([yaw])
 
         return task
 
@@ -302,7 +302,7 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
             ]
         )
         _, _, current_yaw = cr.as_euler("xyz")
-        self.current_rot = np.array([current_yaw])
+        self.current_value = np.array([current_yaw])
 
         if desired_rot is not None:
             dr = R.from_quat(
@@ -314,7 +314,7 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
                 ]
             )
             _, _, desired_yaw = dr.as_euler("xyz")
-            self.desired_rot = np.array([desired_yaw])
+            self.desired_value = np.array([desired_yaw])
 
         # The total number of manipulator joints doesn't need to be updated at each
         # iteration
@@ -342,10 +342,10 @@ class VehicleYaw(EqualityConstraint, TaskFactory):
         Returns:
             The reference signal.
         """
-        return self.desired_rot - self.current_rot
+        return self.desired_value - self.current_value  # type: ignore
 
 
-class VehicleOrientation(EqualityConstraint, TaskFactory):
+class VehicleOrientation(EqualityTask, TaskFactory):
     """Control the vehicle orientation."""
 
     name = "vehicle_orientation_eq"
@@ -357,7 +357,7 @@ class VehicleOrientation(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, gain, priority)
+        EqualityTask.__init__(self, gain, priority)
 
         self.current_rot = Quaternion()
         self.desired_rot = Quaternion()
@@ -445,7 +445,7 @@ class VehicleOrientation(EqualityConstraint, TaskFactory):
         ].reshape((3, 1))
 
 
-class EndEffectorPose(EqualityConstraint, TaskFactory):
+class EndEffectorPose(EqualityTask, TaskFactory):
     """Control the end-effector pose."""
 
     name = "end_effector_pose_eq"
@@ -457,7 +457,7 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, gain, priority)
+        EqualityTask.__init__(self, gain, priority)
 
         self.serial_chain: Any | None = None
         self.joint_angles = np.zeros((1, 1))
@@ -622,47 +622,59 @@ class EndEffectorPose(EqualityConstraint, TaskFactory):
         return np.vstack((pos_error, ori_error))
 
 
-class JointLimit(SetConstraint, TaskFactory):
+class JointLimit(SetTask, TaskFactory):
     """Limit a joint angle to a desired range."""
 
     name = "joint_limit_set"
 
     def __init__(
         self,
-        upper: float,
-        lower: float,
+        physical_upper: float,
+        physical_lower: float,
+        safety_upper: float,
+        safety_lower: float,
         activation_threshold: float,
-        deactivation_threshold: float,
         gain: float,
         priority: float,
         joint: int,
     ) -> None:
-        """Create a new joint limit task.
+        """Create a new set constraint.
 
         Args:
-            upper: The joint angle upper limit.
-            lower: The joint angle lower limit.
-            activation_threshold: The task activation threshold.
-            deactivation_threshold: The task deactivation threshold.
-            gain: The task gain.
-            priority: The task priority.
+            physical_upper: The maximum joint angle.
+            physical_lower: The minimum joint angle.
+            safety_upper: The upper safety limit used to create a buffer from the
+                upper physical limit.
+            safety_lower: The lower safety limit used to create a buffer from the lower
+                physical limit.
+            activation_threshold: The distance from safety thresholds at which the task
+                should become activated.
+            gain: The constraint gain to use for closed-loop control.
+            priority: The constraint priority.
             joint: The joint that the constraint applies to.
         """
         super().__init__(
-            upper, lower, activation_threshold, deactivation_threshold, gain, priority
+            physical_upper,
+            physical_lower,
+            safety_upper,
+            safety_lower,
+            activation_threshold,
+            gain,
+            priority,
         )
 
         self.joint = joint
         self.num_manipulator_joints = 0
-        self.current_angle = 0.0
-        self.desired_angle = 0.0
+        self.current_value = 0.0
+        self.desired_value = 0.0
 
     @staticmethod
     def create_task_from_params(
-        upper: float,
-        lower: float,
+        physical_upper: float,
+        physical_lower: float,
+        safety_upper: float,
+        safety_lower: float,
         activation_threshold: float,
-        deactivation_threshold: float,
         gain: float,
         priority: float,
         joint: int,
@@ -670,19 +682,24 @@ class JointLimit(SetConstraint, TaskFactory):
         """Create a new joint limit task.
 
         Args:
-            upper: The joint angle upper limit.
-            lower: The joint angle lower limit.
-            activation_threshold: The task activation threshold.
-            deactivation_threshold: The task deactivation threshold.
-            gain: The task gain.
-            priority: The task priority.
+            physical_upper: The maximum joint angle.
+            physical_lower: The minimum joint angle.
+            safety_upper: The upper safety limit used to create a buffer from the
+                upper physical limit.
+            safety_lower: The lower safety limit used to create a buffer from the lower
+                physical limit.
+            activation_threshold: The distance from safety thresholds at which the task
+                should become activated.
+            gain: The constraint gain to use for closed-loop control.
+            priority: The constraint priority.
             joint: The joint that the constraint applies to.
         """
         return JointLimit(
-            upper,
-            lower,
+            physical_upper,
+            physical_lower,
+            safety_upper,
+            safety_lower,
             activation_threshold,
-            deactivation_threshold,
             gain,
             priority,
             joint,
@@ -703,10 +720,10 @@ class JointLimit(SetConstraint, TaskFactory):
             n_manipulator_joints: The total number of joints that the manipulator has.
                 Defaults to None.
         """
-        self.current_angle = current_angle
+        self.current_value = current_angle
 
         if desired_angle is not None:
-            self.desired_angle = desired_angle
+            self.desired_value = desired_angle
 
         if n_manipulator_joints is not None:
             self.num_manipulator_joints = n_manipulator_joints
@@ -733,10 +750,10 @@ class JointLimit(SetConstraint, TaskFactory):
         Returns:
             The reference signal to use to drive the joint back to a safe range.
         """
-        return np.array([self.desired_angle - self.current_angle])
+        return np.array([self.desired_value - self.current_value])  # type: ignore
 
 
-class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
+class ManipulatorConfiguration(EqualityTask, TaskFactory):
     """Control the joint angles of the manipulator."""
 
     name = "manipulator_configuration_eq"
@@ -748,10 +765,10 @@ class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityConstraint.__init__(self, gain, priority)
+        EqualityTask.__init__(self, gain, priority)
 
-        self.current_joint_angles = np.zeros((1, 1))
-        self.desired_joint_angles = np.zeros((1, 1))
+        self.current_value = np.zeros((1, 1))
+        self.desired_value = np.zeros((1, 1))
         self.n_manipulator_joints = 0
 
     @staticmethod
@@ -771,7 +788,7 @@ class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
         task = ManipulatorConfiguration(gain, priority)
 
         if desired_joint_angles is not None:
-            task.desired_joint_angles = np.array(desired_joint_angles)
+            task.desired_value = np.array(desired_joint_angles)
 
         return task
 
@@ -789,10 +806,10 @@ class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
             n_manipulator_joints: The total number of joints that the manipulator has.
                 Defaults to None.
         """
-        self.current_joint_angles = current_joint_angles
+        self.current_value = current_joint_angles
 
         if desired_joint_angles is not None:
-            self.desired_joint_angles = desired_joint_angles
+            self.desired_value = desired_joint_angles
 
         if n_manipulator_joints is not None:
             self.n_manipulator_joints = n_manipulator_joints
@@ -816,4 +833,4 @@ class ManipulatorConfiguration(EqualityConstraint, TaskFactory):
         Returns:
             The joint configuration reference signal.
         """
-        return self.desired_joint_angles - self.current_joint_angles
+        return self.desired_value - self.current_value  # type: ignore

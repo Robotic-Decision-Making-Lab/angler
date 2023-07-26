@@ -88,9 +88,11 @@ class TPIK(Node):
         self.declare_parameter("constraint_config_path", "")
         self.declare_parameter("manipulator_base_link", "alpha_base_link")
         self.declare_parameter("manipulator_end_link", "alpha_ee_base_link")
+        self.declare_parameter("control_rate", 100.0)
 
         # Keep track of the robot state for the tasks
         self.state = RobotState()
+        self.dt = self.get_parameter("control_rate").get_parameter_value().double_value
 
         # Get the constraints
         self.hierarchy = TaskHierarchy.load_constraints_from_path(
@@ -159,31 +161,17 @@ class TPIK(Node):
             if hasattr(task, "serial_chain"):
                 task.serial_chain = self.serial_chain  # type: ignore
 
-    def robot_state_cb(self, state: RobotState) -> None:
-        """Update the current robot state.
-
-        Args:
-            state: The current robot state.
-        """
-        self.state = state
-
-        # Update the task context
-        self.update_context()
-
-        # Now update the current task hierarchy
-        # TODO
-        ...
-
     def update_context(self) -> None:
         """Update the current state variables for each task."""
-        for task in self.hierarchy.activated_task_hierarchy:
+        for task in self.hierarchy.active_task_hierarchy:
             # As a brief note, the joint state includes the linear jaws joint angle.
             # We exclude this, because we aren't controlling it within this specific
             # framework.
             if isinstance(task, JointLimit):
                 # Joint limits appear the most frequently so update those first
-                joint_angles = np.array(self.state.joint_state.position)[1:]  # type: ignore # noqa
-                task.update(joint_angles[task.joint])
+                joint_angle = np.array(self.state.joint_state.position)[1:][task.joint]  # type: ignore # noqa
+                task.update(joint_angle)
+                task.set_task_active(joint_angle)
             elif isinstance(task, VehicleRollPitch):
                 vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
                 task.update(vehicle_pose.rotation)
@@ -229,6 +217,17 @@ class TPIK(Node):
                     tf_map_to_ee.transform,
                 )
 
+    def robot_state_cb(self, state: RobotState) -> None:
+        """Update the current robot state.
+
+        Args:
+            state: The current robot state.
+        """
+        self.state = state
+
+        # Update the task context
+        self.update_context()
+
     def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
         ...
 
@@ -257,7 +256,7 @@ class TPIK(Node):
             The calculated system velocities.
         """
         # Get the task
-        t = self.hierarchy.activated_task_hierarchy[task]
+        t = self.hierarchy.active_task_hierarchy[task]
 
         J = t.jacobian
         K = t.gain
@@ -277,11 +276,11 @@ class TPIK(Node):
             )
         else:
             updated_system_velocities = (
-                np.linalg.pinv(J @ nullspace) * K @ r - J * system_velocities
+                np.linalg.pinv(J @ nullspace) * K @ r - J @ system_velocities
             )
 
         # Stop recursion
-        if task == len(self.hierarchy.activated_task_hierarchy) - 1:
+        if task == len(self.hierarchy.active_task_hierarchy) - 1:
             return updated_system_velocities
 
         # Now update for the next iteration
@@ -305,7 +304,7 @@ class TPIK(Node):
 
         # Calculate the system velocities
         system_velocities = self.calculate_system_velocity(
-            len(self.hierarchy.activated_task_hierarchy)
+            len(self.hierarchy.active_task_hierarchy)
         )
 
         cmd = RobotTrajectory()

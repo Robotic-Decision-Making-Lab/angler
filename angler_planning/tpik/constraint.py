@@ -19,14 +19,18 @@
 # THE SOFTWARE.
 
 from abc import ABC, abstractmethod
+from collections import namedtuple
+from typing import Any
 
 import numpy as np
 
+Threshold = namedtuple("Threshold", ["lower", "upper"])
 
-class Constraint(ABC):
-    """Base class for defining a constraint."""
 
-    # The name of the constraint. This is used to reference the constraint at launch.
+class Task(ABC):
+    """Base class for defining a task."""
+
+    # The name of the task. This is used to reference the task at launch.
     name: str = ""
 
     def __init__(
@@ -34,18 +38,21 @@ class Constraint(ABC):
         gain: float,
         priority: float,
     ) -> None:
-        """Create a new constraint.
+        """Create a new task.
 
         Args:
-            gain: The constraint gain.
-            priority: The constraint priority in the constraint priority list.
+            gain: The task gain.
+            priority: The task priority in the task priority list.
         """
         self.gain = gain
         self.priority = priority
+        self.desired_value: Any | None = None  # The desired task value
+        self.current_value: Any | None = None  # The current task value
+        self.desired_value_dot: Any | None = None  # The desired task dynamics
 
     @property
     def jacobian(self) -> np.ndarray:
-        """Get the Jacobian for a constraint.
+        """Get the Jacobian for a task.
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
@@ -57,19 +64,19 @@ class Constraint(ABC):
 
     @property
     def error(self) -> np.ndarray:
-        """Get the reference signal for a constraint.
+        """Get the reference signal for a task.
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
 
         Returns:
-            The constraint reference signal.
+            The task reference signal.
         """
         raise NotImplementedError("This method has not yet been implemented!")
 
     @abstractmethod
     def update(self, *args, **kwargs) -> None:
-        """Update the constraint context.
+        """Update the task context.
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
@@ -77,45 +84,77 @@ class Constraint(ABC):
         raise NotImplementedError("This method has not yet been implemented!")
 
 
-class EqualityConstraint(Constraint):
+class EqualityTask(Task):
     """Constraint which drives the system to a single value."""
 
     def __init__(self, gain: float, priority: float) -> None:
-        """Create a new equality constraint.
+        """Create a new equality task.
 
         Args:
-            gain: The constraint gain to use for closed-loop control.
-            priority: The constraint priority.
+            gain: The task gain to use for closed-loop control.
+            priority: The task priority.
         """
         super().__init__(gain, priority)
 
 
-class SetConstraint(Constraint):
+class SetTask(Task):
     """Constraint which limits a task value to a range."""
 
     def __init__(
         self,
-        upper: float,
-        lower: float,
+        physical_upper: float,
+        physical_lower: float,
+        safety_upper: float,
+        safety_lower: float,
         activation_threshold: float,
-        deactivation_threshold: float,
         gain: float,
         priority: float,
     ) -> None:
-        """Create a new set constraint.
+        """Create a new set task.
 
         Args:
-            name: The name of the constraint.
-            upper: The constraint upper bound.
-            lower: The constraint lower bound.
-            activation_threshold: The threshold at which the task is activated.
-            deactivation_threshold: The distance from the set boundaries at which the
-                task becomes deactivated.
-            gain: The constraint gain to use for closed-loop control.
-            priority: The constraint priority.
+            name: The name of the task.
+            physical_upper: The task physical upper bound.
+            physical_lower: The task physical lower bound.
+            safety_upper: The upper safety limit used to create a buffer from the
+                upper physical limit.
+            safety_lower: The lower safety limit used to create a buffer from the lower
+                physical limit.
+            activation_threshold: The distance from safety thresholds at which the task
+                should become activated.
+            gain: The task gain to use for closed-loop control.
+            priority: The task priority.
         """
         super().__init__(gain, priority)
 
-        self.range = (lower, upper)
-        self.activation_threshold = activation_threshold
-        self.deactivation_threshold = deactivation_threshold
+        self.physical_threshold = Threshold(physical_lower, physical_upper)
+        self.safety_threshold = Threshold(safety_lower, safety_upper)
+        self.activation_threshold = Threshold(
+            safety_lower + activation_threshold, safety_upper - activation_threshold
+        )
+        self.active = False
+
+    def set_task_active(self, value: float) -> bool:
+        """Set the task activity.
+
+        Note that this also sets the desired task value according to the provided
+        thresholds.
+
+        Args:
+            value: The current value of the variable which the task applies to.
+
+        Returns:
+            True if the task was activated; false, otherwise.
+        """
+        active = False
+
+        if value < self.activation_threshold.lower:
+            self.desired_value = self.safety_threshold.lower
+            active = True
+        elif value > self.activation_threshold.upper:
+            self.desired_value = self.safety_threshold.upper
+            active = True
+
+        self.active = active
+
+        return self.active
