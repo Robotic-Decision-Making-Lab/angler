@@ -39,7 +39,7 @@ class Mission:
             frame: The coordinate frame that the mission is defined in.
             waypoints: The sequence of waypoints that the UVMS should track.
         """
-        if len(waypoints) <= 0:
+        if not waypoints:
             raise ValueError(
                 "All missions must define at least one waypoint. However, mission"
                 f" '{name}' does not define any waypoints."
@@ -72,9 +72,9 @@ class Mission:
         # Specify the end effector pose
         transform = Transform()
 
-        transform.translation.x = waypoint["position"]["x"]
-        transform.translation.y = waypoint["position"]["y"]
-        transform.translation.z = waypoint["position"]["z"]
+        transform.translation.x = waypoint["transform"]["x"]
+        transform.translation.y = waypoint["transform"]["y"]
+        transform.translation.z = waypoint["transform"]["z"]
 
         (
             transform.rotation.x,
@@ -84,9 +84,9 @@ class Mission:
         ) = R.from_euler(
             "xyz",
             [
-                waypoint["position"]["roll"],
-                waypoint["position"]["pitch"],
-                waypoint["position"]["yaw"],
+                waypoint["transform"]["rx"],
+                waypoint["transform"]["ry"],
+                waypoint["transform"]["rz"],
             ],
         ).as_quat(
             False

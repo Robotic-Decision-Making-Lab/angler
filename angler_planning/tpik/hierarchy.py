@@ -70,15 +70,19 @@ class TaskHierarchy:
         ]
 
     @property
-    def modes(self) -> list[list[Task]]:
+    def modes(self) -> list[list[SetTask | EqualityTask]]:
         """Get the set of all potential mode combinations for the active task hierarchy.
 
         Returns:
             The active task hierarchy modes.
         """
-        active_tasks = self.active_task_hierarchy
-
-        n_set_tasks = len([x for x in active_tasks if isinstance(x, SetTask)])
+        n_set_tasks = len(
+            [
+                set_task
+                for set_task in self.active_task_hierarchy
+                if isinstance(set_task, SetTask)
+            ]
+        )
 
         # Get all possible combinations of modes
         combinations = list(itertools.product([0, 1], repeat=n_set_tasks))
@@ -87,20 +91,27 @@ class TaskHierarchy:
         # 1's will appear at lower indices
         combinations = sorted(combinations, key=lambda row: -np.sum(row))
 
-        hierarchy_combinations = []
+        hierarchy_combinations: list[list[SetTask | EqualityTask]] = []
+
+        # If there are no set-based tasks active, then just return the equality tasks
+        if not combinations:
+            hierarchy_combinations.append(
+                [eq_task for eq_task in self.tasks if isinstance(eq_task, EqualityTask)]
+            )
+            return hierarchy_combinations
 
         # Generate a set of all potential hierarchy combinations using the mode map
         for combination in combinations:
             # Keep track of which set-based task we are referencing
             set_task_idx = 0
 
-            hierarchy: list[Task] = []
+            hierarchy: list[SetTask | EqualityTask] = []
 
-            for task in active_tasks:
+            for task in self.active_task_hierarchy:
                 if isinstance(task, SetTask):
-                    set_task_idx += 1
                     if combination[set_task_idx]:
                         hierarchy.append(task)
+                    set_task_idx += 1
                 elif isinstance(task, EqualityTask):
                     hierarchy.append(task)
 

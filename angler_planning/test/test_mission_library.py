@@ -21,6 +21,7 @@
 import pytest
 from mission_planning.missions.mission_library import Mission
 from mission_planning.missions.mission_library import MissionLibrary as ml
+from trajectory_msgs.msg import MultiDOFJointTrajectoryPoint
 
 
 @pytest.fixture(autouse=True)
@@ -36,42 +37,53 @@ def test_create_mission() -> None:
         "map",
         waypoints=[
             {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0,
-                "roll": 0.0,
-                "pitch": 0.0,
-                "yaw": 0.0,
-                "acceleration": 0.0,
-                "velocity": 1.0,
-            },
+                "transform": {
+                    "x": 1.0,
+                    "y": 2.0,
+                    "z": 3.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "velocity": {
+                    "x": 0.5,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "acceleration": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+            }
         ],
     )
 
     # Make sure that only one waypoint was created and added
-    assert len(mission.waypoints) == 1
+    assert len(mission.waypoints.points) == 1
+
+    # Check the coordinate frame
+    assert mission.waypoints.header.frame_id == "map"
 
     # Select the first waypoint and check to make sure that the Waypoint message was
     # populated correctly
-    waypoint = mission.waypoints[0]
-
-    # Check the coordinate frame
-    assert waypoint.pose.header.frame_id == "map"
+    waypoint: MultiDOFJointTrajectoryPoint = mission.waypoints.points[0]  # type: ignore
 
     # Check the position
-    assert waypoint.pose.pose.position.x == 0.0
-    assert waypoint.pose.pose.position.y == 0.0
-    assert waypoint.pose.pose.position.z == 0.0
+    assert waypoint.transforms[0].translation.x == 1.0  # type: ignore
+    assert waypoint.transforms[0].translation.y == 2.0  # type: ignore
+    assert waypoint.transforms[0].translation.z == 3.0  # type: ignore
 
-    # Check the orientation (which is converted to a quaternion)
-    assert waypoint.pose.pose.orientation.x == 0.0
-    assert waypoint.pose.pose.orientation.y == 0.0
-    assert waypoint.pose.pose.orientation.z == 0.0
-    assert waypoint.pose.pose.orientation.w == 1.0
-
-    # Check the position and acceleration
-    assert waypoint.acceleration == 0.0
-    assert waypoint.velocity == 1.0
+    assert waypoint.transforms[0].rotation.x == 0.0  # type: ignore
+    assert waypoint.transforms[0].rotation.y == 0.0  # type: ignore
+    assert waypoint.transforms[0].rotation.z == 0.0  # type: ignore
+    assert waypoint.transforms[0].rotation.w == 1.0  # type: ignore
 
 
 def test_create_mission_with_no_waypoints() -> None:
@@ -87,15 +99,31 @@ def test_add_mission() -> None:
         "map",
         waypoints=[
             {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0,
-                "roll": 0.0,
-                "pitch": 0.0,
-                "yaw": 0.0,
-                "acceleration": 0.0,
-                "velocity": 1.0,
-            },
+                "transform": {
+                    "x": 1.0,
+                    "y": 2.0,
+                    "z": 3.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "velocity": {
+                    "x": 0.5,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "acceleration": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+            }
         ],
     )
 
@@ -113,15 +141,31 @@ def test_select_mission() -> None:
         "map",
         waypoints=[
             {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0,
-                "roll": 0.0,
-                "pitch": 0.0,
-                "yaw": 0.0,
-                "acceleration": 0.0,
-                "velocity": 1.0,
-            },
+                "transform": {
+                    "x": 1.0,
+                    "y": 2.0,
+                    "z": 3.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "velocity": {
+                    "x": 0.5,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "acceleration": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+            }
         ],
     )
 
@@ -139,15 +183,31 @@ def test_duplicate_missions() -> None:
         "map",
         waypoints=[
             {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0,
-                "roll": 0.0,
-                "pitch": 0.0,
-                "yaw": 0.0,
-                "acceleration": 0.0,
-                "velocity": 1.0,
-            },
+                "transform": {
+                    "x": 1.0,
+                    "y": 2.0,
+                    "z": 3.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "velocity": {
+                    "x": 0.5,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+                "acceleration": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "rx": 0.0,
+                    "ry": 0.0,
+                    "rz": 0.0,
+                },
+            }
         ],
     )
 

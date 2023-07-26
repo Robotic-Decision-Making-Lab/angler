@@ -23,13 +23,15 @@ import numpy as np
 import rclpy
 from geometry_msgs.msg import Transform, Twist
 from moveit_msgs.msg import RobotState, RobotTrajectory
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from std_msgs.msg import String
 from tf2_ros import TransformException  # type: ignore
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-from tpik.constraint import SetTask, Task
+from tpik.constraint import EqualityTask, SetTask
 from tpik.hierarchy import TaskHierarchy
 from tpik.tasks import (
     EndEffectorPose,
@@ -89,11 +91,12 @@ class TPIK(Node):
         self.declare_parameter("constraint_config_path", "")
         self.declare_parameter("manipulator_base_link", "alpha_base_link")
         self.declare_parameter("manipulator_end_link", "alpha_ee_base_link")
-        self.declare_parameter("control_rate", 100.0)
+        self.declare_parameter("control_rate", 30.0)
 
         # Keep track of the robot state for the tasks
         self.state = RobotState()
-        self.dt = self.get_parameter("control_rate").get_parameter_value().double_value
+        self._description_received = False
+        self._init_state_received = False
 
         # Get the constraints
         self.hierarchy = TaskHierarchy.load_tasks_from_path(
@@ -127,6 +130,25 @@ class TPIK(Node):
         self.robot_trajectory_pub = self.create_publisher(
             RobotTrajectory, "/angler/robot_trajectory", 1
         )
+
+        # Create a new callback group for the control loop timer
+        self.timer_cb_group = MutuallyExclusiveCallbackGroup()
+
+        # Create a timer to run the TPIK controller
+        self.control_timer = self.create_timer(
+            1 / self.get_parameter("control_rate").get_parameter_value().double_value,
+            self.update,
+            self.timer_cb_group,
+        )
+
+    @property
+    def initialized(self) -> bool:
+        """Check whether or not the controller has been fully initialized.
+
+        Returns:
+            Whether or not the controller has been initialized.
+        """
+        return self._description_received and self._init_state_received
 
     def read_robot_description_cb(self, robot_description: String) -> None:
         """Create a kinpy serial chain from the robot description.
@@ -162,8 +184,12 @@ class TPIK(Node):
             if hasattr(task, "serial_chain"):
                 task.serial_chain = self.serial_chain  # type: ignore
 
+        self._description_received = True
+
     def update_context(self) -> None:
         """Update the current state variables for each task."""
+        print(self.state)
+
         for task in self.hierarchy.active_task_hierarchy:
             # As a brief note, the joint state includes the linear jaws joint angle.
             # We exclude this, because we aren't controlling it within this specific
@@ -225,16 +251,15 @@ class TPIK(Node):
             state: The current robot state.
         """
         self.state = state
-
-        # Update the task context
         self.update_context()
+        self._init_state_received = True
 
     def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
         ...
 
     def calculate_system_velocity(
         self,
-        hierarchy: list[Task],
+        hierarchy: list[EqualityTask | SetTask],
         task: int = 0,
         system_velocities: np.ndarray | None = None,
         prev_jacobians: list[np.ndarray] | None = None,
@@ -311,8 +336,9 @@ class TPIK(Node):
 
     def update(self) -> None:
         """Send the updated system velocities."""
-        # Update all context variables are prior to running the control loop
-        self.update_context()
+        # Wait for the system to be initialized before running the controller
+        if not self.initialized:
+            return
 
         # Calculate the system velocities for each potential hierarchy
         hierarchies = self.hierarchy.modes
@@ -322,11 +348,18 @@ class TPIK(Node):
         for hierarchy in hierarchies:
             system_velocities = self.calculate_system_velocity(hierarchy)
 
-            satisfied = False
+            set_tasks = [
+                set_task for set_task in hierarchy if isinstance(set_task, SetTask)
+            ]
 
-            for set_task in [x for x in hierarchy if isinstance(x, SetTask)]:
-                # Check whether or not the solution is driving the system to
-                # the safe set
+            # If there are no set tasks, break early and use the equality task solution
+            if not set_tasks:
+                break
+
+            # Otherwise, we need to check whether or not the solution will drive the
+            # system to the safe set
+            satisfied = False
+            for set_task in set_tasks:
                 if (
                     set_task.current_value < set_task.activation_threshold.lower
                     and set_task.jacobian @ system_velocities > 0
@@ -381,7 +414,8 @@ def main(args: list[str] | None = None):
     rclpy.init(args=args)
 
     node = TPIK()
-    rclpy.spin(node)
+    executor = MultiThreadedExecutor()
+    rclpy.spin(node, executor)
 
     node.destroy_node()
     rclpy.shutdown()

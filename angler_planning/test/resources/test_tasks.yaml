@@ -1,0 +1,13 @@
+- task: "joint_limit_set"
+  priority: 1
+  physical_upper: 0.0
+  physical_lower: 0.0
+  safety_upper: 0.0
+  safety_lower: 0.0
+  activation_threshold: 0.0
+  gain: 0.0
+  joint: 6
+
+- task: "end_effector_pose_eq"
+  priority: 2
+  gain: 0.0
