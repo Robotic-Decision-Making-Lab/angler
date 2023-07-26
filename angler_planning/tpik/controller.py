@@ -29,6 +29,7 @@ from std_msgs.msg import String
 from tf2_ros import TransformException  # type: ignore
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from tpik.constraint import SetTask, Task
 from tpik.hierarchy import TaskHierarchy
 from tpik.tasks import (
     EndEffectorPose,
@@ -95,7 +96,7 @@ class TPIK(Node):
         self.dt = self.get_parameter("control_rate").get_parameter_value().double_value
 
         # Get the constraints
-        self.hierarchy = TaskHierarchy.load_constraints_from_path(
+        self.hierarchy = TaskHierarchy.load_tasks_from_path(
             self.get_parameter("constraint_config_path")
             .get_parameter_value()
             .string_value
@@ -154,7 +155,7 @@ class TPIK(Node):
 
         # Set the relevant task properties while we are here so that we don't have to
         # do it later
-        for task in self.hierarchy.constraints:
+        for task in self.hierarchy.tasks:
             if hasattr(task, "n_manipulator_joints"):
                 task.n_manipulator_joints = self.n_manipulator_joints  # type: ignore
 
@@ -233,6 +234,7 @@ class TPIK(Node):
 
     def calculate_system_velocity(
         self,
+        hierarchy: list[Task],
         task: int = 0,
         system_velocities: np.ndarray | None = None,
         prev_jacobians: list[np.ndarray] | None = None,
@@ -246,6 +248,8 @@ class TPIK(Node):
         Within the Dexrov Project" by Di Lillo, et. al.
 
         Args:
+            hierarchy: The task hierarchy that should be used when calculating the
+                system velocities.
             task: The current task index in the activated task hierarchy. Defaults to 0.
             system_velocities: The calculated system velocities. Defaults to None.
             prev_jacobians: The list of previous Jacobians. Defaults to None.
@@ -256,11 +260,18 @@ class TPIK(Node):
             The calculated system velocities.
         """
         # Get the task
-        t = self.hierarchy.active_task_hierarchy[task]
+        t = hierarchy[task]
 
         J = t.jacobian
-        K = t.gain
         r = t.error
+        K = t.gain * np.eye(r.shape[0])
+
+        # Use the desired time derivative if the task is time-varying, otherwise use
+        # a regularization task
+        if t.desired_value_dot is not None:
+            t_dot = t.desired_value_dot
+        else:
+            t_dot = np.zeros(r.shape)
 
         # Calculate the system velocities
         if task == 0 or None in [system_velocities, prev_jacobians, nullspace]:
@@ -272,11 +283,11 @@ class TPIK(Node):
 
             # The nullspace for the first task is the identity matrix
             updated_system_velocities = (
-                np.linalg.pinv(J) * K @ r - J * system_velocities
+                t_dot + np.linalg.pinv(J) * K @ r - J * system_velocities
             )
         else:
             updated_system_velocities = (
-                np.linalg.pinv(J @ nullspace) * K @ r - J @ system_velocities
+                t_dot + np.linalg.pinv(J @ nullspace) * K @ r - J @ system_velocities
             )
 
         # Stop recursion
@@ -291,6 +302,7 @@ class TPIK(Node):
         )
 
         return self.calculate_system_velocity(
+            hierarchy,
             task=task + 1,
             prev_jacobians=prev_jacobians,
             system_velocities=updated_system_velocities,
@@ -299,13 +311,40 @@ class TPIK(Node):
 
     def update(self) -> None:
         """Send the updated system velocities."""
-        # Update all context variables are updated prior to running the control loop
+        # Update all context variables are prior to running the control loop
         self.update_context()
 
-        # Calculate the system velocities
-        system_velocities = self.calculate_system_velocity(
-            len(self.hierarchy.active_task_hierarchy)
-        )
+        # Calculate the system velocities for each potential hierarchy
+        hierarchies = self.hierarchy.modes
+
+        solutions = []
+
+        for hierarchy in hierarchies:
+            system_velocities = self.calculate_system_velocity(hierarchy)
+
+            satisfied = False
+
+            for set_task in [x for x in hierarchy if isinstance(x, SetTask)]:
+                # Check whether or not the solution is driving the system to
+                # the safe set
+                if (
+                    set_task.current_value < set_task.activation_threshold.lower
+                    and set_task.jacobian @ system_velocities > 0
+                ):
+                    satisfied = True
+                elif (
+                    set_task.current_value > set_task.activation_threshold.upper
+                    and set_task.jacobian @ system_velocities < 0
+                ):
+                    satisfied = True
+
+                # If it is a valid solution, save it for future consideration
+                if satisfied:
+                    solutions.append(system_velocities)
+
+        # Select the solution with the highest norm (this is the least conservative
+        # solution)
+        system_velocities = solutions[np.argmax([np.linalg.norm(x) for x in solutions])]
 
         cmd = RobotTrajectory()
 
