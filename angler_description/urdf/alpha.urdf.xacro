@@ -247,7 +247,8 @@
       <child link="${prefix}m2_joint_link" />
       <origin xyz="-0.02 0 0.033" />
       <axis xyz="0 1 0" />
-      <limit effort="9.0" lower="0.0" upper="3.49" velocity="0.5" />
+      <!-- The true lower limit is 0.0; however, this breaks for some reason with ros2_control -->
+      <limit effort="9.0" lower="-3.49" upper="3.49" velocity="0.5" />
     </joint>
 
     <joint name="${prefix}axis_c" type="revolute">

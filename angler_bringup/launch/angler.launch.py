@@ -263,6 +263,7 @@ def generate_launch_description() -> LaunchDescription:
             {"use_sim_time": use_sim},
         ],
         condition=UnlessCondition(use_sim),
+        arguments=["--ros-args", "--log-level", "debug"]
     )
 
     joint_state_broadcaster_spawner = Node(

@@ -277,13 +277,13 @@ class TPIK(Node):
                 solution = self.calculate_system_velocity(hierarchy)
 
                 set_tasks = [
-                    set_task for set_task in hierarchy if isinstance(set_task, SetTask)
+                    set_task for set_task in self.hierarchy.active_task_hierarchy if isinstance(set_task, SetTask)
                 ]
 
                 # Check whether or not the solution will drive the system to the safe
                 # set, this should always have one solution (all set tasks are
                 # activated)
-                satisfied = False
+                satisfied = []
                 for set_task in set_tasks:
                     projection = set_task.jacobian @ solution
 
@@ -291,22 +291,29 @@ class TPIK(Node):
                         set_task.current_value < set_task.activation_threshold.lower
                         and projection > 0
                     ):
-                        satisfied = True
+                        satisfied.append(True)
                     elif (
                         set_task.current_value > set_task.activation_threshold.upper
                         and projection < 0
                     ):
-                        satisfied = True
+                        satisfied.append(True)
+                    elif np.isclose(projection, 0.0):
+                        satisfied.append(True)
+                    else:
+                        satisfied.append(False)
 
-                    # If it is a valid solution, save it for future consideration
-                    if satisfied:
-                        solutions.append(solution)
+                if all(satisfied):
+                    solutions.append(solution)
 
             # Select the solution with the highest norm (this is the least conservative
             # solution)
-            system_velocities = solutions[
-                np.argmax([np.linalg.norm(x) for x in solutions])
-            ]
+            try:
+                system_velocities = solutions[
+                    np.argmax([np.linalg.norm(x) for x in solutions])
+                ]
+            except Exception as e:
+                self.get_logger().warning(f"Unable to calculate valid system velocities from the current hierarchy: {e}")
+                return
 
         self.robot_trajectory_pub.publish(
             self.get_robot_trajectory_from_velocities(system_velocities)
@@ -358,11 +365,10 @@ class TPIK(Node):
         """Update the current state variables for each task."""
         for task in self.hierarchy.tasks:
             if isinstance(task, JointLimit):
-                # Joint limits appear most frequently, so update those first
-                # As a brief note, the joint state includes the linear jaws joint angle.
-                # We exclude this, because we aren't controlling it within this specific
-                # framework.
-                joint_angle = np.array(self.state.joint_state.position)[0:][
+                # The joint state includes the linear jaws joint angle. We exclude this,
+                # because we aren't controlling it within this specific framework.
+                joint_angles = self.state.joint_state.position[1:]
+                joint_angle = np.array(joint_angles)[
                     task.joint - 6
                 ]
                 task.update(joint_angle)

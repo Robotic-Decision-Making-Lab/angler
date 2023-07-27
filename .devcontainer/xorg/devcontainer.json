@@ -1,12 +1,12 @@
 {
   "dockerFile": ".docker/Dockerfile",
-  "context": ".",
+  "context": "../..",
   "build": {
     "args": {
       "WORKSPACE": "${containerWorkspaceFolder}",
       "ROS_DISTRO": "rolling"
     },
-    "target": "develop-nvidia"
+    "target": "develop"
   },
   "remoteUser": "angler",
   "runArgs": [
@@ -14,17 +14,15 @@
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp:unconfined",
     "--security-opt=apparmor:unconfined",
-    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-    "--volume=/mnt/wslg:/mnt/wslg",
-    "--gpus=all"
+    "--volume=/dev:/dev",
+    "--privileged",
+    "--volume=/run/user/1000:/run/user/1000"
   ],
   "containerEnv": {
     "DISPLAY": "${localEnv:DISPLAY}",
     "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
     "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
-    "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
-    "LIBGL_ALWAYS_SOFTWARE": "1", // Needed for software rendering of opengl
-    "QT_X11_NO_MITSHM": "1"
+    "PULSE_SERVER": "${localEnv:PULSE_SERVER}"
   },
   "customizations": {
     "vscode": {

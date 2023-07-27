@@ -1,22 +1,22 @@
-# - task: "joint_limit_set"
-#   priority: 1
-#   physical_upper: 3.22
-#   physical_lower: 0.0
-#   safety_upper: 3.133
-#   safety_lower: 0.087
-#   activation_threshold: 0.087
-#   gain: 10.0
-#   joint: 6  # axis b
+- task: "joint_limit_set"
+  priority: 1
+  physical_upper: 3.22
+  physical_lower: 0.0
+  safety_upper: 3.133
+  safety_lower: 0.087
+  activation_threshold: 0.087
+  gain: 0.5
+  joint: 6  # axis b
 
-# - task: "joint_limit_set"
-#   priority: 1
-#   physical_upper: 3.142
-#   physical_lower: 0.0
-#   safety_upper: 2.356
-#   safety_lower: 0.087
-#   activation_threshold: 0.087
-#   gain: 10.0
-#   joint: 7  # axis c
+- task: "joint_limit_set"
+  priority: 1
+  physical_upper: 3.142
+  physical_lower: 0.0
+  safety_upper: 2.356
+  safety_lower: 0.087
+  activation_threshold: 0.087
+  gain: 0.5
+  joint: 7  # axis c
 
 - task: "joint_limit_set"
   priority: 1
@@ -25,18 +25,18 @@
   safety_upper: 1.475
   safety_lower: 0.087
   activation_threshold: 0.087
-  gain: 10.0
+  gain: 0.5
   joint: 8  # axis d
 
-# - task: "joint_limit_set"
-#   priority: 1
-#   physical_upper: 4.713
-#   physical_lower: 1.571
-#   safety_upper: 4.513
-#   safety_lower: 1.745
-#   activation_threshold: 0.087
-#   gain: 10.0
-#   joint: 9  # axis e
+- task: "joint_limit_set"
+  priority: 1
+  physical_upper: 4.713
+  physical_lower: 1.571
+  safety_upper: 4.513
+  safety_lower: 1.745
+  activation_threshold: 0.087
+  gain: 0.5
+  joint: 9  # axis e
 
 # - task: "joint_limit_set"
 #   joint: 2  # Z-axis (depth)
@@ -54,11 +54,11 @@
 
 - task: "vehicle_roll_pitch_eq"
   priority: 3
-  gain: 1.5
+  gain: 5.0
   roll: 0.0
   pitch: 0.0
 
 - task: "vehicle_yaw_eq"
   priority: 4
-  gain: 1.5
+  gain: 5.0
   yaw: 0.0
