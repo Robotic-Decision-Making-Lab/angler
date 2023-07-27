@@ -24,9 +24,10 @@ import rclpy
 from geometry_msgs.msg import Transform, Twist
 from moveit_msgs.msg import RobotState, RobotTrajectory
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSProfile
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from std_msgs.msg import String
 from tf2_ros import TransformException  # type: ignore
 from tf2_ros.buffer import Buffer
@@ -55,7 +56,7 @@ def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
         The nullspace of the augmented Jacobian.
     """
     return (
-        np.eye(augmented_jacobian.shape[0])
+        np.eye(augmented_jacobian.shape[1])
         - np.linalg.pinv(augmented_jacobian) @ augmented_jacobian
     )
 
@@ -114,10 +115,13 @@ class TPIK(Node):
             String,
             "/robot_description",
             self.read_robot_description_cb,
-            QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL),
+            QoSProfile(depth=5, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL),
         )
         self.robot_state_sub = self.create_subscription(
-            RobotState, "/angler/state", self.robot_state_cb, 1
+            RobotState,
+            "/angler/state",
+            self.robot_state_cb,
+            qos_profile=qos_profile_sensor_data,
         )
         self.joint_trajectory_sub = self.create_subscription(
             RobotTrajectory,
@@ -186,17 +190,181 @@ class TPIK(Node):
 
         self._description_received = True
 
+        self.get_logger().info("Robot description received!")
+
+    def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
+        ...
+
+    def calculate_system_velocity(
+        self, hierarchy: list[EqualityTask | SetTask]
+    ) -> np.ndarray:
+        """Calculate the system velocities using TPIK control.
+
+        Args:
+            hierarchy: The task hierarchy to use when calculating the system velocities.
+        """
+        # Set the initial recursion variables
+        system_velocities = np.zeros((6 + self.n_manipulator_joints, 1))
+        jacobians: list[np.ndarray] = []
+
+        # The initial nullspace matrix is the identity matrix
+        # make sure that we use the correct dimensions for it
+        nullspace = np.eye(hierarchy[0].jacobian.shape[1])
+
+        def calculate_system_velocity_rec(
+            hierarchy: list[EqualityTask | SetTask],
+            system_velocities: np.ndarray,
+            prev_jacobians: list[np.ndarray],
+            nullspace: np.ndarray,
+        ) -> np.ndarray:
+            if not hierarchy:
+                return system_velocities
+            else:
+                t = hierarchy[0]
+                J = t.jacobian
+                e = t.error
+                K = t.gain * np.eye(e.shape[0])
+
+                # Use the desired time derivative if the task is time-varying,
+                # otherwise use a regularization task
+                if t.desired_value_dot is not None:
+                    t_dot = t.desired_value_dot
+                else:
+                    t_dot = np.zeros(e.shape)
+
+                updated_system_velocities = np.linalg.pinv(J @ nullspace) @ (
+                    t_dot + K @ e - J @ system_velocities
+                )
+
+                prev_jacobians.append(J)  # type: ignore
+                updated_nullspace = calculate_nullspace(
+                    construct_augmented_jacobian(prev_jacobians)  # type: ignore
+                )
+
+                return updated_system_velocities + calculate_system_velocity_rec(
+                    hierarchy[1:],
+                    updated_system_velocities,
+                    prev_jacobians,
+                    updated_nullspace,
+                )
+
+        return calculate_system_velocity_rec(
+            hierarchy, system_velocities, jacobians, nullspace
+        )
+
+    def update(self) -> None:
+        """Calculate and send the desired system velocities."""
+        # Wait for the system to be initialized before running the controller
+        if not self.initialized:
+            return
+
+        hierarchies = self.hierarchy.hierarchies
+
+        # Check whether or not the hierarchies have any set tasks
+        has_set_tasks = any(
+            [any([isinstance(y, SetTask) for y in x]) for x in hierarchies]
+        )
+
+        if not has_set_tasks:
+            # If there are only equality tasks in the hierarchies, then there will
+            # only be one potential solution
+            system_velocities = self.calculate_system_velocity(hierarchies[0])
+        else:
+            # Otherwise, we need to check all potential solutions to find the best
+            solutions = []
+
+            for hierarchy in hierarchies:
+                solution = self.calculate_system_velocity(hierarchy)
+
+                set_tasks = [
+                    set_task for set_task in hierarchy if isinstance(set_task, SetTask)
+                ]
+
+                # Check whether or not the solution will drive the system to the safe
+                # set, this should always have one solution (all set tasks are
+                # activated)
+                satisfied = False
+                for set_task in set_tasks:
+                    projection = set_task.jacobian @ solution
+
+                    if (
+                        set_task.current_value < set_task.activation_threshold.lower
+                        and projection > 0
+                    ):
+                        satisfied = True
+                    elif (
+                        set_task.current_value > set_task.activation_threshold.upper
+                        and projection < 0
+                    ):
+                        satisfied = True
+
+                    # If it is a valid solution, save it for future consideration
+                    if satisfied:
+                        solutions.append(solution)
+
+            # Select the solution with the highest norm (this is the least conservative
+            # solution)
+            system_velocities = solutions[
+                np.argmax([np.linalg.norm(x) for x in solutions])
+            ]
+
+        self.robot_trajectory_pub.publish(
+            self.get_robot_trajectory_from_velocities(system_velocities)
+        )
+
+    def get_robot_trajectory_from_velocities(
+        self, system_velocities: np.ndarray
+    ) -> RobotTrajectory:
+        """Create a RobotTrajectory message from the system velocities.
+
+        Args:
+            system_velocities: The desired system velocites.
+
+        Returns:
+            The resulting RobotTrajectory message.
+        """
+        trajectory = RobotTrajectory()
+
+        # Create the vehicle command
+        vehicle_cmd = MultiDOFJointTrajectoryPoint()
+        vehicle_vel = Twist()
+
+        (
+            vehicle_vel.linear.x,
+            vehicle_vel.linear.y,
+            vehicle_vel.linear.z,
+            vehicle_vel.angular.x,
+            vehicle_vel.angular.y,
+            vehicle_vel.angular.z,
+        ) = system_velocities[:6, 0]
+
+        vehicle_cmd.velocities = [vehicle_vel]
+
+        # Create the manipulator command
+        arm_cmd = JointTrajectoryPoint()
+        arm_cmd.velocities = [0.0] + list(system_velocities[6:, 0])
+
+        # Create the full system command
+        trajectory.multi_dof_joint_trajectory.joint_names = ["vehicle"]
+        trajectory.joint_trajectory.joint_names = [
+            "alpha_axis_a"
+        ] + self.serial_chain.get_joint_parameter_names()[::-1]
+        trajectory.multi_dof_joint_trajectory.points = [vehicle_cmd]
+        trajectory.joint_trajectory.points = [arm_cmd]
+
+        return trajectory
+
     def update_context(self) -> None:
         """Update the current state variables for each task."""
-        print(self.state)
-
-        for task in self.hierarchy.active_task_hierarchy:
-            # As a brief note, the joint state includes the linear jaws joint angle.
-            # We exclude this, because we aren't controlling it within this specific
-            # framework.
+        for task in self.hierarchy.tasks:
             if isinstance(task, JointLimit):
-                # Joint limits appear the most frequently so update those first
-                joint_angle = np.array(self.state.joint_state.position)[1:][task.joint]  # type: ignore # noqa
+                # Joint limits appear most frequently, so update those first
+                # As a brief note, the joint state includes the linear jaws joint angle.
+                # We exclude this, because we aren't controlling it within this specific
+                # framework.
+                joint_angle = np.array(self.state.joint_state.position)[0:][
+                    task.joint - 6
+                ]
                 task.update(joint_angle)
                 task.set_task_active(joint_angle)
             elif isinstance(task, VehicleRollPitch):
@@ -218,7 +386,7 @@ class TPIK(Node):
                 # Get the necessary transforms
                 try:
                     tf_manipulator_base_to_base = self.tf_buffer.lookup_transform(
-                        "alpha_base_link", "base_link", self.get_clock().now()
+                        "base_link", "alpha_base_link", self.get_clock().now()
                     )
                 except TransformException as e:
                     self.get_logger().error(
@@ -226,14 +394,18 @@ class TPIK(Node):
                         f" to the vehicle base: {e}"
                     )
                     continue
+
                 try:
                     tf_map_to_ee = self.tf_buffer.lookup_transform(
-                        "map", "alpha_ee_base_link", self.get_clock().now()
+                        "alpha_ee_base_link",
+                        "map",
+                        self.get_clock().now(),
+                        timeout=Duration(seconds=0.5),  # type: ignore
                     )
                 except TransformException as e:
                     self.get_logger().error(
-                        "Unable to get the transformation from the manipulator base"
-                        f" to the vehicle base: {e}"
+                        "Unable to get the transformation from the map"
+                        f" to the end effector: {e}"
                     )
                     continue
 
@@ -253,160 +425,6 @@ class TPIK(Node):
         self.state = state
         self.update_context()
         self._init_state_received = True
-
-    def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
-        ...
-
-    def calculate_system_velocity(
-        self,
-        hierarchy: list[EqualityTask | SetTask],
-        task: int = 0,
-        system_velocities: np.ndarray | None = None,
-        prev_jacobians: list[np.ndarray] | None = None,
-        nullspace: np.ndarray | None = None,
-    ):
-        """Calculate the system velocities using TPIK control.
-
-        This method calculates the system velocities recursively. This is based off of
-        the formula provided in "Underwater Intervention With Remote Supervision via
-        Satellite Communication: Developed Control Architecture and Experimental Results
-        Within the Dexrov Project" by Di Lillo, et. al.
-
-        Args:
-            hierarchy: The task hierarchy that should be used when calculating the
-                system velocities.
-            task: The current task index in the activated task hierarchy. Defaults to 0.
-            system_velocities: The calculated system velocities. Defaults to None.
-            prev_jacobians: The list of previous Jacobians. Defaults to None.
-            nullspace: The nullspace which the task Jacobian should be projected into.
-                Defaults to None.
-
-        Returns:
-            The calculated system velocities.
-        """
-        # Get the task
-        t = hierarchy[task]
-
-        J = t.jacobian
-        r = t.error
-        K = t.gain * np.eye(r.shape[0])
-
-        # Use the desired time derivative if the task is time-varying, otherwise use
-        # a regularization task
-        if t.desired_value_dot is not None:
-            t_dot = t.desired_value_dot
-        else:
-            t_dot = np.zeros(r.shape)
-
-        # Calculate the system velocities
-        if task == 0 or None in [system_velocities, prev_jacobians, nullspace]:
-            # Set the initial system velocities to 0
-            system_velocities = np.zeros((6 + self.n_manipulator_joints, 1))
-
-            if prev_jacobians is None:
-                prev_jacobians = []
-
-            # The nullspace for the first task is the identity matrix
-            updated_system_velocities = (
-                t_dot + np.linalg.pinv(J) * K @ r - J * system_velocities
-            )
-        else:
-            updated_system_velocities = (
-                t_dot + np.linalg.pinv(J @ nullspace) * K @ r - J @ system_velocities
-            )
-
-        # Stop recursion
-        if task == len(self.hierarchy.active_task_hierarchy) - 1:
-            return updated_system_velocities
-
-        # Now update for the next iteration
-        # Note that this will modify the top-level list
-        prev_jacobians.append(J)  # type: ignore
-        updated_nullspace = calculate_nullspace(
-            construct_augmented_jacobian(prev_jacobians)  # type: ignore
-        )
-
-        return self.calculate_system_velocity(
-            hierarchy,
-            task=task + 1,
-            prev_jacobians=prev_jacobians,
-            system_velocities=updated_system_velocities,
-            nullspace=updated_nullspace,
-        )
-
-    def update(self) -> None:
-        """Send the updated system velocities."""
-        # Wait for the system to be initialized before running the controller
-        if not self.initialized:
-            return
-
-        # Calculate the system velocities for each potential hierarchy
-        hierarchies = self.hierarchy.modes
-
-        solutions = []
-
-        for hierarchy in hierarchies:
-            system_velocities = self.calculate_system_velocity(hierarchy)
-
-            set_tasks = [
-                set_task for set_task in hierarchy if isinstance(set_task, SetTask)
-            ]
-
-            # If there are no set tasks, break early and use the equality task solution
-            if not set_tasks:
-                break
-
-            # Otherwise, we need to check whether or not the solution will drive the
-            # system to the safe set
-            satisfied = False
-            for set_task in set_tasks:
-                if (
-                    set_task.current_value < set_task.activation_threshold.lower
-                    and set_task.jacobian @ system_velocities > 0
-                ):
-                    satisfied = True
-                elif (
-                    set_task.current_value > set_task.activation_threshold.upper
-                    and set_task.jacobian @ system_velocities < 0
-                ):
-                    satisfied = True
-
-                # If it is a valid solution, save it for future consideration
-                if satisfied:
-                    solutions.append(system_velocities)
-
-        # Select the solution with the highest norm (this is the least conservative
-        # solution)
-        system_velocities = solutions[np.argmax([np.linalg.norm(x) for x in solutions])]
-
-        cmd = RobotTrajectory()
-
-        # Create the vehicle command
-        vehicle_cmd = MultiDOFJointTrajectoryPoint()
-        vehicle_vel = Twist()
-
-        (
-            vehicle_vel.linear.x,
-            vehicle_vel.linear.y,
-            vehicle_vel.linear.z,
-            vehicle_vel.angular.x,
-            vehicle_vel.angular.y,
-            vehicle_vel.angular.z,
-        ) = system_velocities[:6]
-
-        vehicle_cmd.velocities = [vehicle_vel]
-
-        # Create the manipulator command
-        arm_cmd = JointTrajectoryPoint()
-        arm_cmd.velocities = [0.0] + list(system_velocities[6:])
-
-        # Create the full system command
-        cmd.multi_dof_joint_trajectory.joint_names = ["vehicle"]
-        cmd.joint_trajectory.joint_names = self.serial_chain.get_joint_parameter_names()
-        cmd.multi_dof_joint_trajectory.points = [vehicle_cmd]
-        cmd.joint_trajectory.points = [arm_cmd]
-
-        self.robot_trajectory_pub.publish(cmd)
 
 
 def main(args: list[str] | None = None):

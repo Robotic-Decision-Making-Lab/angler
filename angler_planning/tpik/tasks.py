@@ -582,8 +582,13 @@ class EndEffectorPose(EqualityTask, TaskFactory):
         r_0ee_M = r_Mee_M - r_MB_M - r_B0_M  # type: ignore
 
         def get_skew_matrix(x: np.ndarray) -> np.ndarray:
+            # Expect a 3x1 vector
             return np.array(
-                [[0, -x[2], x[1]], [x[2], 0, -x[0]], [-x[1], x[0], 0]],  # type: ignore
+                [
+                    [0, -x[2][0], x[1][0]],  # type: ignore
+                    [x[2][0], 0, -x[0][0]],
+                    [-x[1][0], x[0][0], 0],
+                ],
             )
 
         J = np.zeros((6, 6 + len(self.joint_angles)))
@@ -664,7 +669,7 @@ class JointLimit(SetTask, TaskFactory):
         )
 
         self.joint = joint
-        self.num_manipulator_joints = 0
+        self.n_manipulator_joints = 0
         self.current_value = 0.0
         self.desired_value = 0.0
 
@@ -726,7 +731,7 @@ class JointLimit(SetTask, TaskFactory):
             self.desired_value = desired_angle
 
         if n_manipulator_joints is not None:
-            self.num_manipulator_joints = n_manipulator_joints
+            self.n_manipulator_joints = n_manipulator_joints
 
     @property
     def jacobian(self) -> np.ndarray:
@@ -738,8 +743,8 @@ class JointLimit(SetTask, TaskFactory):
         Returns:
             The joint limit Jacobian.
         """
-        J = np.zeros((1, 6 + self.num_manipulator_joints))
-        J[self.joint] = 1
+        J = np.zeros((1, 6 + self.n_manipulator_joints))
+        J[0, self.joint] = 1
 
         return J
 

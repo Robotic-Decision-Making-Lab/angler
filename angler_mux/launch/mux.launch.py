@@ -48,10 +48,16 @@ def generate_launch_description() -> LaunchDescription:
             description="The state mux type to load.",
             choices=["single_manipulator_mux"],
         ),
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="false",
+            description=("Use the simulated Gazebo clock."),
+        ),
     ]
 
     demux = LaunchConfiguration("demux")
     mux = LaunchConfiguration("mux")
+    use_sim_time = LaunchConfiguration("use_sim_time")
 
     nodes = [
         Node(
@@ -59,13 +65,19 @@ def generate_launch_description() -> LaunchDescription:
             executable=demux,
             name=demux,
             output="screen",
-            parameters=[LaunchConfiguration("config_filepath")],
+            parameters=[
+                LaunchConfiguration("config_filepath"),
+                {"use_sim_time": use_sim_time},
+            ],
         ),
         Node(
             package="angler_mux",
             executable=mux,
             name=mux,
-            parameters=[LaunchConfiguration("config_filepath")],
+            parameters=[
+                LaunchConfiguration("config_filepath"),
+                {"use_sim_time": use_sim_time},
+            ],
         ),
     ]
 

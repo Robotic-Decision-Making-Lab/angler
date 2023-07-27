@@ -260,6 +260,7 @@ def generate_launch_description() -> LaunchDescription:
                     controllers_file,
                 ]
             ),
+            {"use_sim_time": use_sim},
         ],
         condition=UnlessCondition(use_sim),
     )
@@ -391,6 +392,7 @@ def generate_launch_description() -> LaunchDescription:
                         [description_package, "config", initial_positions_file]
                     ),
                     "controller_cmd_topic": "/forward_velocity_controller/commands",
+                    "use_sim_time": use_sim,
                 }
             ],
             condition=IfCondition(
@@ -459,7 +461,8 @@ def generate_launch_description() -> LaunchDescription:
                         "config",
                         LaunchConfiguration("planning_file"),
                     ]
-                )
+                ),
+                "use_sim_time": use_sim,
             }.items(),
         ),
         IncludeLaunchDescription(
@@ -473,7 +476,8 @@ def generate_launch_description() -> LaunchDescription:
                         "config",
                         LaunchConfiguration("mux_file"),
                     ]
-                )
+                ),
+                "use_sim_time": use_sim,
             }.items(),
         ),
         IncludeLaunchDescription(

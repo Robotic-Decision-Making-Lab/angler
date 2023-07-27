@@ -68,11 +68,11 @@ def test_modes(hierarchy: TaskHierarchy) -> None:
     Args:
         hierarchy: The task hierarchy.
     """
-    assert len(hierarchy.modes) == 1
+    assert len(hierarchy.hierarchies) == 1
 
     # Now activate the set task
     for task in hierarchy.tasks:
         if isinstance(task, SetTask):
             task.active = True
 
-    assert len(hierarchy.modes) == 2  # 2^1 = 2
+    assert len(hierarchy.hierarchies) == 2  # 2^1 = 2

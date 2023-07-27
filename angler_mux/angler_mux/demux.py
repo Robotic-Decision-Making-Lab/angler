@@ -114,7 +114,7 @@ class SingleManipulatorForwardVelocityDemux(VelocityDemux):
         joint_vel_cmd = Float64MultiArray()
 
         point: JointTrajectoryPoint = cmd.joint_trajectory.points[0]  # type:ignore
-        joint_vel_cmd.data = point.positions
+        joint_vel_cmd.data = point.velocities
 
         # Now proxy the manipulator joint velocity command
         self.manipulator_cmd_vel_pub.publish(joint_vel_cmd)

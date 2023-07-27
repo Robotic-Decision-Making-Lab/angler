@@ -20,22 +20,19 @@
 
 import rclpy
 from geometry_msgs.msg import Transform
+from message_filters import ApproximateTimeSynchronizer, Subscriber
 from moveit_msgs.msg import RobotState
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import JointState
 
 
 class Mux(Node):
-    """Base class for an state mux.
-
-    This interface is designed to capture all UVMS state information and proxy it on a
-    single topic.
-    """
+    """Mux all UVMS state information and proxy state to a single topic."""
 
     def __init__(self, node_name: str = "angler_mux") -> None:
-        """Create a new mux base object.
+        """Create a new mux interface.
 
         Args:
             node_name: The name of the ROS 2 node. Defaults to "angler_mux".
@@ -43,24 +40,42 @@ class Mux(Node):
         super().__init__(node_name)
 
         # Maintain the UVMS state
-        self.uvms_state = RobotState()
+        self.robot_state = RobotState()
 
         # Publishers
-        self.uvms_state_pub = self.create_publisher(RobotState, "/angler/state", 1)
-
-        # Subscribers
-        self.base_state_sub = self.create_subscription(
-            Odometry,
-            "/mavros/local_position/odom",
-            self.update_base_state_cb,
-            qos_profile_sensor_data,
+        self.uvms_state_pub = self.create_publisher(
+            RobotState, "/angler/state", qos_profile=qos_profile_sensor_data
         )
 
-    def update_base_state_cb(self, odom: Odometry) -> None:
-        """Update the current AUV state.
+        # Subscribers
+        self.base_state_sub = Subscriber(
+            self,
+            Odometry,
+            "/mavros/local_position/odom",
+            qos_profile=qos_profile_sensor_data,
+        )
+        self.manipulator_state_sub = Subscriber(
+            self,
+            JointState,
+            "/joint_states",
+            qos_profile=QoSProfile(
+                depth=5, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
+            ),
+        )
+
+        # Create a message filter to synchronize state messages
+        self.ts = ApproximateTimeSynchronizer(
+            [self.base_state_sub, self.manipulator_state_sub], 5, 0.02
+        )
+
+        self.ts.registerCallback(self.update_robot_state_cb)
+
+    def update_robot_state_cb(self, odom: Odometry, joint_state: JointState) -> None:
+        """Update the current robot state.
 
         Args:
             odom: The current state (pose + velocity) of the base.
+            joint_state: The current joint state of the manipulator(s).
         """
         # Convert the message into a Transform message
         transform = Transform()
@@ -72,48 +87,26 @@ class Mux(Node):
         transform.rotation = odom.pose.pose.orientation
 
         # Update the MultiDOFJointState
-        self.uvms_state.multi_dof_joint_state.header.frame_id = "map"
-        self.uvms_state.multi_dof_joint_state.header.stamp = self.get_clock().now()
-        self.uvms_state.multi_dof_joint_state.joint_names = ["vehicle"]
-        self.uvms_state.multi_dof_joint_state.transforms = [transform]
-        self.uvms_state.multi_dof_joint_state.twist = [odom.twist.twist]
-
-        # Publish the UVMS state each time we get an update
-        self.uvms_state_pub.publish(self.uvms_state)
-
-
-class SingleManipulatorMux(Mux):
-    """UVMS state mux for a UVMS with a single Reach Alpha manipulator."""
-
-    def __init__(self) -> None:
-        """Create a new mux for a single manipulator."""
-        super().__init__(node_name="single_manipulator_mux")
-
-        # Subscribers
-        self.manipulator_state_sub = self.create_subscription(
-            JointState,
-            "/joint_states",
-            self.update_joint_state_cb,
-            1,
+        self.robot_state.multi_dof_joint_state.header.frame_id = "map"
+        self.robot_state.multi_dof_joint_state.header.stamp = (
+            self.get_clock().now().to_msg()
         )
+        self.robot_state.multi_dof_joint_state.joint_names = ["vehicle"]
+        self.robot_state.multi_dof_joint_state.transforms = [transform]
+        self.robot_state.multi_dof_joint_state.twist = [odom.twist.twist]
 
-    def update_joint_state_cb(self, state: JointState) -> None:
-        """Update the current joint state information.
-
-        Args:
-            state: The current Reach Alpha joint state.
-        """
-        self.uvms_state.joint_state = state
+        # Update the joint states
+        self.robot_state.joint_state = joint_state
 
         # Publish the UVMS state each time we get an update
-        self.uvms_state_pub.publish(self.uvms_state)
+        self.uvms_state_pub.publish(self.robot_state)
 
 
-def main_single_manipulator_mux(args: list[str] | None = None):
+def main(args: list[str] | None = None):
     """Run the mux for a single manipulator."""
     rclpy.init(args=args)
 
-    node = SingleManipulatorMux()
+    node = Mux()
     rclpy.spin(node)
 
     node.destroy_node()

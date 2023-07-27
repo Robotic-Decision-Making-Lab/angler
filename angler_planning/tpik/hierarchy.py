@@ -70,7 +70,7 @@ class TaskHierarchy:
         ]
 
     @property
-    def modes(self) -> list[list[SetTask | EqualityTask]]:
+    def hierarchies(self) -> list[list[SetTask | EqualityTask]]:
         """Get the set of all potential mode combinations for the active task hierarchy.
 
         Returns:

@@ -43,7 +43,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "single_manipulator_mux = angler_mux.mux:main_single_manipulator_mux",
+            "single_manipulator_mux = angler_mux.mux:main",
             "single_manipulator_velocity_demux = angler_mux.demux:main_single_manipulator_demux",  # noqa
         ],
     },
