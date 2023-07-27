@@ -43,6 +43,7 @@ from tpik.tasks import (
     VehicleYaw,
 )
 from trajectory_msgs.msg import JointTrajectoryPoint, MultiDOFJointTrajectoryPoint
+from tf2_ros import Time
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -107,7 +108,7 @@ class TPIK(Node):
         )
 
         # TF2
-        self.tf_buffer = Buffer()
+        self.tf_buffer = Buffer(cache_time=Duration(seconds=1))
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # Subscribers
@@ -269,6 +270,8 @@ class TPIK(Node):
             # If there are only equality tasks in the hierarchies, then there will
             # only be one potential solution
             system_velocities = self.calculate_system_velocity(hierarchies[0])
+
+            self.get_logger().info(f"err: {hierarchies[0][0].error} vel: {system_velocities}")
         else:
             # Otherwise, we need to check all potential solutions to find the best
             solutions = []
@@ -313,7 +316,8 @@ class TPIK(Node):
                 ]
             except Exception as e:
                 self.get_logger().warning(f"Unable to calculate valid system velocities from the current hierarchy: {e}")
-                return
+                # If we can't find a safe solution, just stop
+                system_velocities = np.zeros((6 + self.n_manipulator_joints, 1))
 
         self.robot_trajectory_pub.publish(
             self.get_robot_trajectory_from_velocities(system_velocities)
@@ -378,6 +382,7 @@ class TPIK(Node):
                 task.update(vehicle_pose.rotation)
             elif isinstance(task, ManipulatorConfiguration):
                 joint_angles = np.array(self.state.joint_state.position)[1:]  # type: ignore # noqa
+                joint_angles = joint_angles.reshape((len(joint_angles), 1))
                 task.update(joint_angles)
             elif isinstance(task, VehicleYaw):
                 vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
@@ -405,8 +410,8 @@ class TPIK(Node):
                     tf_map_to_ee = self.tf_buffer.lookup_transform(
                         "alpha_ee_base_link",
                         "map",
-                        self.get_clock().now(),
-                        timeout=Duration(seconds=0.5),  # type: ignore
+                        Time(seconds=0),
+                        timeout=Duration(seconds=1)
                     )
                 except TransformException as e:
                     self.get_logger().error(
@@ -414,6 +419,8 @@ class TPIK(Node):
                         f" to the end effector: {e}"
                     )
                     continue
+
+                self.get_logger().info(f"tf map to ee: {tf_map_to_ee}")
 
                 task.update(
                     joint_angles,

@@ -793,7 +793,7 @@ class ManipulatorConfiguration(EqualityTask, TaskFactory):
         task = ManipulatorConfiguration(gain, priority)
 
         if desired_joint_angles is not None:
-            task.desired_value = np.array(desired_joint_angles)
+            task.desired_value = np.array(desired_joint_angles).reshape((len(desired_joint_angles), 1))
 
         return task
 
@@ -826,8 +826,8 @@ class ManipulatorConfiguration(EqualityTask, TaskFactory):
         Returns:
             The joint configuration Jacobian.
         """
-        J = np.zeros((1, 6 + self.n_manipulator_joints))
-        J[6:] = 1
+        J = np.zeros((self.n_manipulator_joints, 6 + self.n_manipulator_joints))
+        J[0:, 6:] = np.eye(self.n_manipulator_joints)
 
         return J
 

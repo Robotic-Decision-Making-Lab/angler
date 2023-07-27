@@ -5,7 +5,7 @@
   safety_upper: 3.133
   safety_lower: 0.087
   activation_threshold: 0.087
-  gain: 0.5
+  gain: 0.3
   joint: 6  # axis b
 
 - task: "joint_limit_set"
@@ -15,7 +15,7 @@
   safety_upper: 2.356
   safety_lower: 0.087
   activation_threshold: 0.087
-  gain: 0.5
+  gain: 0.3
   joint: 7  # axis c
 
 - task: "joint_limit_set"
@@ -25,7 +25,7 @@
   safety_upper: 1.475
   safety_lower: 0.087
   activation_threshold: 0.087
-  gain: 0.5
+  gain: 0.3
   joint: 8  # axis d
 
 - task: "joint_limit_set"
@@ -35,22 +35,17 @@
   safety_upper: 4.513
   safety_lower: 1.745
   activation_threshold: 0.087
-  gain: 0.5
+  gain: 0.3
   joint: 9  # axis e
-
-# - task: "joint_limit_set"
-#   joint: 2  # Z-axis (depth)
-#   priority: 1
-#   physical_upper: 0.0
-#   physical_lower: 0.0
-#   safety_upper: 0.0
-#   safety_lower: 0.0
-#   activation_threshold: 0.0
-#   gain: 0.0
 
 # - task: "end_effector_pose_eq"
 #   priority: 2
-#   gain: 0.0
+#   gain: 5.0
+
+- task: "manipulator_configuration_eq"
+  priority: 2
+  gain: 0.2
+  desired_joint_angles: [0.0, 1.57, 0.0, 3.14]
 
 - task: "vehicle_roll_pitch_eq"
   priority: 3
