@@ -51,6 +51,7 @@ class Task(ABC):
         self.desired_value_dot: Any | None = None  # The desired task dynamics
 
     @property
+    @abstractmethod
     def jacobian(self) -> np.ndarray:
         """Get the Jacobian for a task.
 
@@ -63,6 +64,7 @@ class Task(ABC):
         raise NotImplementedError("This method has not yet been implemented!")
 
     @property
+    @abstractmethod
     def error(self) -> np.ndarray:
         """Get the reference signal for a task.
 
@@ -80,6 +82,19 @@ class Task(ABC):
 
         Raises:
             NotImplementedError: This method has not yet been implemented.
+        """
+        raise NotImplementedError("This method has not yet been implemented!")
+
+    @staticmethod
+    @abstractmethod
+    def create_task_from_params(*args, **kwargs) -> Any:
+        """Create a new constraint from a configuration file.
+
+        Raises:
+            NotImplementedError: This method has not yet been implemented.
+
+        Returns:
+            A new constraint.
         """
         raise NotImplementedError("This method has not yet been implemented!")
 
@@ -135,7 +150,7 @@ class SetTask(Task):
         self.active = False
 
     def set_task_active(self, value: float) -> bool:
-        """Set the task activity.
+        """Enable/disable the task according to its current state.
 
         Note that this also sets the desired task value according to the provided
         thresholds.

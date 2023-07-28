@@ -30,6 +30,7 @@ from tpik.tasks import (
     JointLimit,
     ManipulatorConfiguration,
     VehicleOrientation,
+    VehicleOrientationLimit,
     VehicleRollPitch,
     VehicleYaw,
 )
@@ -43,6 +44,7 @@ _task_library = {
         VehicleOrientation,
         VehicleRollPitch,
         VehicleYaw,
+        VehicleOrientationLimit,
     ]
 }
 

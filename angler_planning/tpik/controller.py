@@ -30,6 +30,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from std_msgs.msg import String
 from tf2_ros import TransformException  # type: ignore
+from tf2_ros import Time
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from tpik.constraint import EqualityTask, SetTask
@@ -39,11 +40,11 @@ from tpik.tasks import (
     JointLimit,
     ManipulatorConfiguration,
     VehicleOrientation,
+    VehicleOrientationLimit,
     VehicleRollPitch,
     VehicleYaw,
 )
 from trajectory_msgs.msg import JointTrajectoryPoint, MultiDOFJointTrajectoryPoint
-from tf2_ros import Time
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -191,7 +192,7 @@ class TPIK(Node):
 
         self._description_received = True
 
-        self.get_logger().info("Robot description received!")
+        self.get_logger().debug("Robot description received!")
 
     def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
         ...
@@ -270,8 +271,6 @@ class TPIK(Node):
             # If there are only equality tasks in the hierarchies, then there will
             # only be one potential solution
             system_velocities = self.calculate_system_velocity(hierarchies[0])
-
-            self.get_logger().info(f"err: {hierarchies[0][0].error} vel: {system_velocities}")
         else:
             # Otherwise, we need to check all potential solutions to find the best
             solutions = []
@@ -280,7 +279,9 @@ class TPIK(Node):
                 solution = self.calculate_system_velocity(hierarchy)
 
                 set_tasks = [
-                    set_task for set_task in self.hierarchy.active_task_hierarchy if isinstance(set_task, SetTask)
+                    set_task
+                    for set_task in self.hierarchy.active_task_hierarchy
+                    if isinstance(set_task, SetTask)
                 ]
 
                 # Check whether or not the solution will drive the system to the safe
@@ -300,7 +301,7 @@ class TPIK(Node):
                         and projection < 0
                     ):
                         satisfied.append(True)
-                    elif np.isclose(projection, 0.0):
+                    elif np.isclose(projection, 0.0, atol=0.02):  # 1 degree
                         satisfied.append(True)
                     else:
                         satisfied.append(False)
@@ -315,9 +316,11 @@ class TPIK(Node):
                     np.argmax([np.linalg.norm(x) for x in solutions])
                 ]
             except Exception as e:
-                self.get_logger().warning(f"Unable to calculate valid system velocities from the current hierarchy: {e}")
-                # If we can't find a safe solution, just stop
-                system_velocities = np.zeros((6 + self.n_manipulator_joints, 1))
+                self.get_logger().debug(
+                    "Unable to calculate valid system velocities from the current"
+                    f" hierarchy: {e}"
+                )
+                return
 
         self.robot_trajectory_pub.publish(
             self.get_robot_trajectory_from_velocities(system_velocities)
@@ -372,11 +375,13 @@ class TPIK(Node):
                 # The joint state includes the linear jaws joint angle. We exclude this,
                 # because we aren't controlling it within this specific framework.
                 joint_angles = self.state.joint_state.position[1:]
-                joint_angle = np.array(joint_angles)[
-                    task.joint - 6
-                ]
+                joint_angle = np.array(joint_angles)[task.joint - 6]
                 task.update(joint_angle)
                 task.set_task_active(joint_angle)
+            elif isinstance(task, VehicleOrientationLimit):
+                vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
+                task.update(vehicle_pose.rotation)
+                task.set_task_active(vehicle_pose.rotation)
             elif isinstance(task, VehicleRollPitch):
                 vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
                 task.update(vehicle_pose.rotation)
@@ -396,37 +401,43 @@ class TPIK(Node):
 
                 # Get the necessary transforms
                 try:
-                    tf_manipulator_base_to_base = self.tf_buffer.lookup_transform(
-                        "base_link", "alpha_base_link", self.get_clock().now()
+                    tf_map_to_ee = self.tf_buffer.lookup_transform(
+                        "map", "alpha_ee_base_link", Time()
+                    )
+                except TransformException as e:
+                    self.get_logger().error(
+                        "Unable to get the transformation from the map frame"
+                        f" to the end effector frame: {e}"
+                    )
+                    continue
+                try:
+                    tf_base_to_manipulator_base = self.tf_buffer.lookup_transform(
+                        "base_link", "alpha_base_link", Time()
                     )
                 except TransformException as e:
                     self.get_logger().error(
                         "Unable to get the transformation from the manipulator base"
-                        f" to the vehicle base: {e}"
+                        f" frame to the vehicle base frame: {e}"
                     )
                     continue
 
                 try:
-                    tf_map_to_ee = self.tf_buffer.lookup_transform(
-                        "alpha_ee_base_link",
-                        "map",
-                        Time(seconds=0),
-                        timeout=Duration(seconds=1)
+                    tf_manipulator_base_to_ee = self.tf_buffer.lookup_transform(
+                        "alpha_base_link", "alpha_ee_base_link", Time()
                     )
                 except TransformException as e:
                     self.get_logger().error(
-                        "Unable to get the transformation from the map"
-                        f" to the end effector: {e}"
+                        "Unable to get the transformation from the manipulator base"
+                        f" frame to the end effector frame: {e}"
                     )
                     continue
 
-                self.get_logger().info(f"tf map to ee: {tf_map_to_ee}")
-
                 task.update(
                     joint_angles,
-                    vehicle_pose,
-                    tf_manipulator_base_to_base.transform,
                     tf_map_to_ee.transform,
+                    vehicle_pose,
+                    tf_base_to_manipulator_base.transform,
+                    tf_manipulator_base_to_ee.transform,
                 )
 
     def robot_state_cb(self, state: RobotState) -> None:

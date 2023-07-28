@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
@@ -100,24 +99,7 @@ def calculate_manipulator_jacobian(
     return np.array(serial_chain.jacobian(joint_angles))
 
 
-class TaskFactory(ABC):
-    """Base class for a class which implements the factory pattern."""
-
-    @staticmethod
-    @abstractmethod
-    def create_task_from_params(*args, **kwargs) -> Any:
-        """Create a new constraint from a configuration file.
-
-        Raises:
-            NotImplementedError: This method has not yet been implemented.
-
-        Returns:
-            A new constraint.
-        """
-        raise NotImplementedError("This method has not yet been implemented!")
-
-
-class VehicleRollPitch(EqualityTask, TaskFactory):
+class VehicleRollPitch(EqualityTask):
     """Control the vehicle roll and pitch angles."""
 
     name = "vehicle_roll_pitch_eq"
@@ -129,7 +111,7 @@ class VehicleRollPitch(EqualityTask, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityTask.__init__(self, gain, priority)
+        super().__init__(gain, priority)
 
         self.desired_value = np.zeros((2, 1))
         self.current_value = np.zeros((2, 1))
@@ -227,17 +209,13 @@ class VehicleRollPitch(EqualityTask, TaskFactory):
     def error(self) -> np.ndarray:
         """Calculate the reference signal for the vehicle roll-pitch task.
 
-        Args:
-            current_orientation: The current vehicle orientation--the yaw will be
-                ignored when calculating the reference.
-
         Returns:
             The reference signal.
         """
         return self.desired_value - self.current_value  # type: ignore
 
 
-class VehicleYaw(EqualityTask, TaskFactory):
+class VehicleYaw(EqualityTask):
     """Control the vehicle yaw angle."""
 
     name = "vehicle_yaw_eq"
@@ -249,7 +227,7 @@ class VehicleYaw(EqualityTask, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityTask.__init__(self, gain, priority)
+        super().__init__(gain, priority)
 
         self.current_value = np.zeros((1, 1))
         self.desired_value = np.zeros((1, 1))
@@ -345,7 +323,7 @@ class VehicleYaw(EqualityTask, TaskFactory):
         return self.desired_value - self.current_value  # type: ignore
 
 
-class VehicleOrientation(EqualityTask, TaskFactory):
+class VehicleOrientation(EqualityTask):
     """Control the vehicle orientation."""
 
     name = "vehicle_orientation_eq"
@@ -357,7 +335,7 @@ class VehicleOrientation(EqualityTask, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityTask.__init__(self, gain, priority)
+        super().__init__(gain, priority)
 
         self.current_rot = Quaternion()
         self.desired_rot = Quaternion()
@@ -445,7 +423,7 @@ class VehicleOrientation(EqualityTask, TaskFactory):
         ].reshape((3, 1))
 
 
-class EndEffectorPose(EqualityTask, TaskFactory):
+class EndEffectorPose(EqualityTask):
     """Control the end-effector pose."""
 
     name = "end_effector_pose_eq"
@@ -457,15 +435,15 @@ class EndEffectorPose(EqualityTask, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityTask.__init__(self, gain, priority)
+        super().__init__(gain, priority)
 
         self.serial_chain: Any | None = None
         self.joint_angles = np.zeros((1, 1))
-        self.transform_map_to_base = Transform()
-        self.transform_manipulator_base_to_base = Transform()
-        self.transform_map_to_end_effector = Transform()
-        self.current_pose = Transform()
-        self.desired_pose = Transform()
+        self.tf_map_to_base = Transform()
+        self.tf_base_to_manipulator_base = Transform()
+        self.tf_manipulator_base_to_ee = Transform()
+        self.current_value = Transform()
+        self.desired_value = Transform()
 
     @staticmethod
     def create_task_from_params(
@@ -502,15 +480,15 @@ class EndEffectorPose(EqualityTask, TaskFactory):
         task = EndEffectorPose(gain, priority)
 
         if None not in [x, y, z, roll, pitch, yaw]:
-            task.desired_pose.translation.x = x
-            task.desired_pose.translation.y = y
-            task.desired_pose.translation.z = z
+            task.desired_value.translation.x = x
+            task.desired_value.translation.y = y
+            task.desired_value.translation.z = z
 
             (
-                task.desired_pose.rotation.x,
-                task.desired_pose.rotation.y,
-                task.desired_pose.rotation.z,
-                task.desired_pose.rotation.w,
+                task.desired_value.rotation.x,
+                task.desired_value.rotation.y,
+                task.desired_value.rotation.z,
+                task.desired_value.rotation.w,
             ) = R.from_euler(
                 "xyz", [roll, pitch, yaw]  # type: ignore
             ).as_quat(
@@ -522,9 +500,10 @@ class EndEffectorPose(EqualityTask, TaskFactory):
     def update(
         self,
         joint_angles: np.ndarray,
-        current_pose: Transform,
-        transform_manipulator_base_to_base: Transform,
-        transform_map_to_end_effector: Transform,
+        tf_map_to_ee: Transform,
+        tf_map_to_base: Transform,
+        tf_base_to_manipulator_base: Transform,
+        tf_manipulator_base_to_ee: Transform,
         serial_chain: Any | None = None,
         desired_pose: Transform | None = None,
     ) -> None:
@@ -533,27 +512,26 @@ class EndEffectorPose(EqualityTask, TaskFactory):
         Args:
             joint_angles: The current manipulator joint angles.
             current_pose: The current vehicle pose in the inertial (map) frame.
-            transform_manipulator_base_to_base: The transformation from the manipulator
-                base frame to the vehicle base frame.
-            transform_map_to_end_effector: The transformation from the map frame to the
-                end effector frame.
+            tf_base_to_manipulator_base: The transformation from the vehile base
+                frame to the manipulator base frame.
+            tf_manipulator_base_to_ee: The transformation from the manipulator base
+                frame to the end effector frame.
             serial_chain: The manipulator kinpy serial chain. Defaults to None.
             desired_pose: The desired end effector pose. Defaults to None.
         """
         self.joint_angles = joint_angles
-        self.current_pose = current_pose
 
-        # The transformation from the map to base_link frame is just the current pose
-        self.transform_map_to_base = current_pose
+        self.current_value = tf_map_to_ee
 
-        self.transform_manipulator_base_to_base = transform_manipulator_base_to_base
-        self.transform_map_to_end_effector = transform_map_to_end_effector
+        self.tf_map_to_base = tf_map_to_base
+        self.tf_base_to_manipulator_base = tf_base_to_manipulator_base
+        self.tf_manipulator_base_to_ee = tf_manipulator_base_to_ee
 
         if serial_chain is not None:
             self.serial_chain = serial_chain
 
         if desired_pose is not None:
-            self.desired_pose = desired_pose
+            self.desired_value = desired_pose
 
     @property
     def jacobian(self) -> np.ndarray:
@@ -563,23 +541,25 @@ class EndEffectorPose(EqualityTask, TaskFactory):
             The UVMS Jacobian.
         """
         # Get the transformation translations
-        # denoted as r_{from frame}{to frame}_{with respecto x frame}
-        r_MB_M = point_to_array(self.transform_map_to_base.translation)
-        r_0B_B = point_to_array(self.transform_manipulator_base_to_base.translation)
-        r_Mee_M = point_to_array(self.transform_map_to_end_effector.translation)
+        # denoted as r_{from frame}{to frame}_{with respect to x frame}
+        eta1 = point_to_array(self.tf_map_to_base.translation)
+        r_B0_B = point_to_array(self.tf_base_to_manipulator_base.translation)
+        eta_0ee_0 = point_to_array(self.tf_manipulator_base_to_ee.translation)
 
         # Get the transformation rotations
         # denoted as R_{from frame}_{to frame}
-        R_0_B = quaternion_to_rotation(
-            self.transform_manipulator_base_to_base.rotation
-        ).as_matrix()
-        R_B_M = np.linalg.inv(
-            quaternion_to_rotation(self.transform_map_to_base.rotation).as_matrix()
+        R_0_B = np.linalg.inv(
+            quaternion_to_rotation(
+                self.tf_base_to_manipulator_base.rotation
+            ).as_matrix()
         )
-        R_0_M = R_B_M @ R_0_B
+        R_B_I = np.linalg.inv(
+            quaternion_to_rotation(self.tf_map_to_base.rotation).as_matrix()
+        )
+        R_0_I = R_B_I @ R_0_B
 
-        r_B0_M = R_B_M @ r_0B_B
-        r_0ee_M = r_Mee_M - r_MB_M - r_B0_M  # type: ignore
+        r_B0_I = R_B_I @ r_B0_B
+        eta_0ee_I = R_0_I @ eta_0ee_0
 
         def get_skew_matrix(x: np.ndarray) -> np.ndarray:
             # Expect a 3x1 vector
@@ -595,13 +575,13 @@ class EndEffectorPose(EqualityTask, TaskFactory):
         J_man = calculate_manipulator_jacobian(self.serial_chain, self.joint_angles)
 
         # Position Jacobian
-        J[:3, :3] = R_B_M
-        J[:3, 3:6] = -(get_skew_matrix(r_B0_M) + get_skew_matrix(r_0ee_M)) @ R_B_M  # type: ignore # noqa
-        J[:3, 6:] = R_0_M @ J_man[:3]
+        J[:3, :3] = R_B_I
+        J[:3, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
+        J[:3, 6:] = R_0_I @ J_man[:3]
 
         # Orientation Jacobian
-        J[3:6, 3:6] = R_B_M
-        J[3:6, 6:] = R_0_M @ J_man[3:6]
+        J[3:6, 3:6] = R_B_I
+        J[3:6, 6:] = R_0_I @ J_man[3:]
 
         return J
 
@@ -615,19 +595,19 @@ class EndEffectorPose(EqualityTask, TaskFactory):
         """
         pos_error = np.array(
             [
-                self.desired_pose.translation.x - self.current_pose.translation.x,
-                self.desired_pose.translation.y - self.current_pose.translation.y,
-                self.desired_pose.translation.z - self.current_pose.translation.z,
+                self.desired_value.translation.x - self.current_value.translation.x,
+                self.desired_value.translation.y - self.current_value.translation.y,
+                self.desired_value.translation.z - self.current_value.translation.z,
             ]
         ).reshape((3, 1))
         ori_error = calculate_quaternion_error(
-            self.desired_pose.rotation, self.current_pose.rotation
+            self.desired_value.rotation, self.current_value.rotation
         )[:3].reshape((3, 1))
 
         return np.vstack((pos_error, ori_error))
 
 
-class JointLimit(SetTask, TaskFactory):
+class JointLimit(SetTask):
     """Limit a joint angle to a desired range."""
 
     name = "joint_limit_set"
@@ -711,24 +691,16 @@ class JointLimit(SetTask, TaskFactory):
         )
 
     def update(
-        self,
-        current_angle: float,
-        desired_angle: float | None = None,
-        n_manipulator_joints: int | None = None,
+        self, current_angle: float, n_manipulator_joints: int | None = None
     ) -> None:
         """Update the current context of the joint limit task.
 
         Args:
             current_angle: The current joint angle.
-            desired_angle: The desired joint angle. This will be configured by the
-                task hierarchy.
             n_manipulator_joints: The total number of joints that the manipulator has.
                 Defaults to None.
         """
         self.current_value = current_angle
-
-        if desired_angle is not None:
-            self.desired_value = desired_angle
 
         if n_manipulator_joints is not None:
             self.n_manipulator_joints = n_manipulator_joints
@@ -758,7 +730,7 @@ class JointLimit(SetTask, TaskFactory):
         return np.array([self.desired_value - self.current_value])  # type: ignore
 
 
-class ManipulatorConfiguration(EqualityTask, TaskFactory):
+class ManipulatorConfiguration(EqualityTask):
     """Control the joint angles of the manipulator."""
 
     name = "manipulator_configuration_eq"
@@ -770,7 +742,7 @@ class ManipulatorConfiguration(EqualityTask, TaskFactory):
             gain: The task gain.
             priority: The task priority.
         """
-        EqualityTask.__init__(self, gain, priority)
+        super().__init__(gain, priority)
 
         self.current_value = np.zeros((1, 1))
         self.desired_value = np.zeros((1, 1))
@@ -793,7 +765,9 @@ class ManipulatorConfiguration(EqualityTask, TaskFactory):
         task = ManipulatorConfiguration(gain, priority)
 
         if desired_joint_angles is not None:
-            task.desired_value = np.array(desired_joint_angles).reshape((len(desired_joint_angles), 1))
+            task.desired_value = np.array(desired_joint_angles).reshape(
+                (len(desired_joint_angles), 1)
+            )
 
         return task
 
@@ -839,3 +813,160 @@ class ManipulatorConfiguration(EqualityTask, TaskFactory):
             The joint configuration reference signal.
         """
         return self.desired_value - self.current_value  # type: ignore
+
+
+class VehicleOrientationLimit(SetTask):
+    """Constraint the vehicle roll."""
+
+    name = "vehicle_orientation_limit_set"
+
+    def __init__(
+        self,
+        physical_upper: float,
+        physical_lower: float,
+        safety_upper: float,
+        safety_lower: float,
+        activation_threshold: float,
+        gain: float,
+        priority: float,
+        joint: int,
+    ) -> None:
+        """Create a new vehicle orientation limit task.
+
+        Args:
+            physical_upper: The maximum rotation angle.
+            physical_lower: The minimum rotation angle.
+            safety_upper: The upper safety limit used to create a buffer from the
+                upper physical limit.
+            safety_lower: The lower safety limit used to create a buffer from the lower
+                physical limit.
+            activation_threshold: The distance from safety thresholds at which the task
+                should become activated.
+            gain: The constraint gain to use for closed-loop control.
+            priority: The constraint priority.
+            joint: The vehicle orientation joint to constrain: 3 for roll, 4 for pitch,
+                5 for yaw.
+        """
+        super().__init__(
+            physical_upper,
+            physical_lower,
+            safety_upper,
+            safety_lower,
+            activation_threshold,
+            gain,
+            priority,
+        )
+        self.joint = joint
+
+    @staticmethod
+    def create_task_from_params(
+        physical_upper: float,
+        physical_lower: float,
+        safety_upper: float,
+        safety_lower: float,
+        activation_threshold: float,
+        gain: float,
+        priority: float,
+        joint: int,
+    ) -> Any:
+        """Create a new vehicle roll limit task.
+
+        Args:
+            physical_upper: The maximum rotation angle.
+            physical_lower: The minimum rotation angle.
+            safety_upper: The upper safety limit used to create a buffer from the
+                upper physical limit.
+            safety_lower: The lower safety limit used to create a buffer from the lower
+                physical limit.
+            activation_threshold: The distance from safety thresholds at which the task
+                should become activated.
+            gain: The constraint gain to use for closed-loop control.
+            priority: The constraint priority.
+            joint: The vehicle orientation joint to constrain: 3 for roll, 4 for pitch,
+                5 for yaw.
+        """
+        return VehicleOrientationLimit(
+            physical_upper,
+            physical_lower,
+            safety_upper,
+            safety_lower,
+            activation_threshold,
+            gain,
+            priority,
+            joint,
+        )
+
+    def update(
+        self,
+        current_rot: Quaternion,
+        n_manipulator_joints: int | None = None,
+    ) -> None:
+        """Update the task context.
+
+        Args:
+            current_rot: The current vehicle orientation in the inertial (map)
+                frame.
+            n_manipulator_joints: The total number of joints that the manipulator has.
+                Defaults to None.
+        """
+        self.rot_map_to_base = current_rot
+
+        cr = R.from_quat(
+            [
+                current_rot.x,
+                current_rot.y,
+                current_rot.z,
+                current_rot.w,
+            ]
+        )
+        self.current_value = np.array([cr.as_euler("xyz")[self.joint - 2]])
+
+        if n_manipulator_joints is not None:
+            self.n_manipulator_joints = n_manipulator_joints
+
+    @property
+    def jacobian(self) -> np.ndarray:
+        """Calculate the vehicle roll limit task Jacobian.
+
+        Returns:
+            The Jacobian for a task which controls the vehicle roll and pitch.
+        """
+        J_ko = calculate_vehicle_angular_velocity_jacobian(self.rot_map_to_base)
+
+        J = np.zeros((1, 6 + self.n_manipulator_joints))
+        axis = np.zeros((1, 3))
+        axis[:, self.joint - 2] = 1
+        J[:, 3:6] = axis @ np.linalg.pinv(J_ko)
+
+        return J
+
+    @property
+    def error(self) -> np.ndarray:
+        """Calculate the reference signal for the vehicle roll limit task.
+
+        Returns:
+            The reference signal.
+        """
+        return self.desired_value - self.current_value  # type: ignore
+
+    def set_task_active(self, value: Quaternion) -> bool:
+        """Enable/disable the task according to its current state.
+
+        Args:
+            value: The current orientation of the vehicle with respect to the inertial
+                frame.
+
+        Returns:
+            Whether or not the task was activated.
+        """
+        cr = R.from_quat(
+            [
+                value.x,
+                value.y,
+                value.z,
+                value.w,
+            ]
+        )
+        angle = cr.as_euler("xyz")[self.joint - 2]
+
+        return super().set_task_active(angle)
