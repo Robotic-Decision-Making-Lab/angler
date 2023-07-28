@@ -36,7 +36,9 @@ from tf2_ros.transform_listener import TransformListener
 from tpik.constraint import EqualityTask, SetTask
 from tpik.hierarchy import TaskHierarchy
 from tpik.tasks import (
+    EndEffectorOrientation,
     EndEffectorPose,
+    EndEffectorPosition,
     JointLimit,
     ManipulatorConfiguration,
     VehicleOrientation,
@@ -45,6 +47,10 @@ from tpik.tasks import (
     VehicleYaw,
 )
 from trajectory_msgs.msg import JointTrajectoryPoint, MultiDOFJointTrajectoryPoint
+
+np.set_printoptions(
+    edgeitems=30, linewidth=100000, formatter=dict(float=lambda x: "%.3g" % x)
+)
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -216,7 +222,7 @@ class TPIK(Node):
         def calculate_system_velocity_rec(
             hierarchy: list[EqualityTask | SetTask],
             system_velocities: np.ndarray,
-            prev_jacobians: list[np.ndarray],
+            jacobians: list[np.ndarray],
             nullspace: np.ndarray,
         ) -> np.ndarray:
             if not hierarchy:
@@ -238,15 +244,15 @@ class TPIK(Node):
                     t_dot + K @ e - J @ system_velocities
                 )
 
-                prev_jacobians.append(J)  # type: ignore
+                jacobians.append(J)  # type: ignore
                 updated_nullspace = calculate_nullspace(
-                    construct_augmented_jacobian(prev_jacobians)  # type: ignore
+                    construct_augmented_jacobian(jacobians)  # type: ignore
                 )
 
                 return updated_system_velocities + calculate_system_velocity_rec(
                     hierarchy[1:],
                     updated_system_velocities,
-                    prev_jacobians,
+                    jacobians,
                     updated_nullspace,
                 )
 
@@ -356,7 +362,7 @@ class TPIK(Node):
 
         # Create the manipulator command
         arm_cmd = JointTrajectoryPoint()
-        arm_cmd.velocities = [0.0] + list(system_velocities[6:, 0])
+        arm_cmd.velocities = [0.0] + list(system_velocities[6:, 0])[::-1]
 
         # Create the full system command
         trajectory.multi_dof_joint_trajectory.joint_names = ["vehicle"]
@@ -374,7 +380,7 @@ class TPIK(Node):
             if isinstance(task, JointLimit):
                 # The joint state includes the linear jaws joint angle. We exclude this,
                 # because we aren't controlling it within this specific framework.
-                joint_angles = self.state.joint_state.position[1:]
+                joint_angles = self.state.joint_state.position[1:][::-1]
                 joint_angle = np.array(joint_angles)[task.joint - 6]
                 task.update(joint_angle)
                 task.set_task_active(joint_angle)
@@ -386,7 +392,7 @@ class TPIK(Node):
                 vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
                 task.update(vehicle_pose.rotation)
             elif isinstance(task, ManipulatorConfiguration):
-                joint_angles = np.array(self.state.joint_state.position)[1:]  # type: ignore # noqa
+                joint_angles = np.array(self.state.joint_state.position)[1:][::-1]  # type: ignore # noqa
                 joint_angles = joint_angles.reshape((len(joint_angles), 1))
                 task.update(joint_angles)
             elif isinstance(task, VehicleYaw):
@@ -395,8 +401,12 @@ class TPIK(Node):
             elif isinstance(task, VehicleOrientation):
                 vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
                 task.update(vehicle_pose.rotation)
-            elif isinstance(task, EndEffectorPose):
-                joint_angles = np.array(self.state.joint_state.position)[1:]  # type: ignore # noqa
+            elif (
+                isinstance(task, EndEffectorPose)
+                or isinstance(task, EndEffectorPosition)
+                or isinstance(task, EndEffectorOrientation)
+            ):
+                joint_angles = np.array(self.state.joint_state.position)[1:][::-1]  # type: ignore # noqa
                 vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
 
                 # Get the necessary transforms

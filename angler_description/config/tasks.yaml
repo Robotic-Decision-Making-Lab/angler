@@ -1,12 +1,12 @@
-- task: "joint_limit_set"
-  priority: 1
-  physical_upper: 3.142
-  physical_lower: 0.0
-  safety_upper: 2.356
-  safety_lower: 0.087
-  activation_threshold: 0.087
-  gain: 0.3
-  joint: 7  # axis c
+# - task: "joint_limit_set"
+#   priority: 1
+#   physical_upper: 3.142
+#   physical_lower: 0.0
+#   safety_upper: 2.356
+#   safety_lower: 0.087
+#   activation_threshold: 0.087
+#   gain: 0.3
+#   joint: 8  # axis c
 
 - task: "joint_limit_set"
   priority: 1
@@ -16,7 +16,7 @@
   safety_lower: 0.087
   activation_threshold: 0.087
   gain: 0.3
-  joint: 8  # axis d
+  joint: 7  # axis d
 
 - task: "joint_limit_set"
   priority: 1
@@ -26,7 +26,7 @@
   safety_lower: 1.745
   activation_threshold: 0.087
   gain: 0.3
-  joint: 9  # axis e
+  joint: 6  # axis e
 
 # - task: "manipulator_configuration_eq"
 #   priority: 2
@@ -40,10 +40,23 @@
   y: 0.0
   z: -1.0
   roll: 0.0
-  pitch: 0.0
+  pitch: 1.571
   yaw: 0.0
 
-- task: "vehicle_yaw_eq"
-  priority: 3
-  gain: 0.5
-  yaw: 0.0
+# - task: "end_effector_orientation_eq"
+#   priority: 2
+#   gain: 1.0
+#   roll: 0.0
+#   pitch: 1.571
+#   yaw: 0.0
+
+# - task: "vehicle_yaw_eq"
+#   priority: 3
+#   gain: 0.5
+#   yaw: 0.0
+
+# - task: "vehicle_roll_pitch_eq"
+#   priority: 3
+#   gain: 0.3
+#   roll: 0.0
+#   pitch: 0.0

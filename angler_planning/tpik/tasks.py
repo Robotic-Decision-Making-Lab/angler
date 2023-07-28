@@ -970,3 +970,300 @@ class VehicleOrientationLimit(SetTask):
         angle = cr.as_euler("xyz")[self.joint - 2]
 
         return super().set_task_active(angle)
+
+
+class EndEffectorPosition(EqualityTask):
+    """Control the end-effector pose."""
+
+    name = "end_effector_position_eq"
+
+    def __init__(self, gain: float, priority: float) -> None:
+        """Create a new end effector pose task.
+
+        Args:
+            gain: The task gain.
+            priority: The task priority.
+        """
+        super().__init__(gain, priority)
+
+        self.serial_chain: Any | None = None
+        self.joint_angles = np.zeros((1, 1))
+        self.tf_map_to_base = Transform()
+        self.tf_base_to_manipulator_base = Transform()
+        self.tf_manipulator_base_to_ee = Transform()
+        self.current_value = Transform()
+        self.desired_value = Transform()
+
+    @staticmethod
+    def create_task_from_params(
+        gain: float,
+        priority: float,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,
+    ) -> Any:
+        """Create a new end effector pose task from a set of parameters.
+
+        Args:
+            gain: The task gain.
+            priority: The task priority.
+            x: The desired end effector x position in the inertial (map) frame. Defaults
+                to None.
+            y: The desired end effector y position in the inertial (map) frame. Defaults
+                to None.
+            z: The desired end effector z position in the inertial (map) frame. Defaults
+                to None.
+
+        Returns:
+            A new end effector pose task.
+        """
+        task = EndEffectorPose(gain, priority)
+
+        if None not in [x, y, z]:
+            task.desired_value.translation.x = x
+            task.desired_value.translation.y = y
+            task.desired_value.translation.z = z
+
+        return task
+
+    def update(
+        self,
+        joint_angles: np.ndarray,
+        tf_map_to_ee: Transform,
+        tf_map_to_base: Transform,
+        tf_base_to_manipulator_base: Transform,
+        tf_manipulator_base_to_ee: Transform,
+        serial_chain: Any | None = None,
+        desired_pose: Transform | None = None,
+    ) -> None:
+        """Update the current context of the end effector pose task.
+
+        Args:
+            joint_angles: The current manipulator joint angles.
+            current_pose: The current vehicle pose in the inertial (map) frame.
+            tf_base_to_manipulator_base: The transformation from the vehile base
+                frame to the manipulator base frame.
+            tf_manipulator_base_to_ee: The transformation from the manipulator base
+                frame to the end effector frame.
+            serial_chain: The manipulator kinpy serial chain. Defaults to None.
+            desired_pose: The desired end effector pose. Defaults to None.
+        """
+        self.joint_angles = joint_angles
+
+        self.current_value = tf_map_to_ee
+
+        self.tf_map_to_base = tf_map_to_base
+        self.tf_base_to_manipulator_base = tf_base_to_manipulator_base
+        self.tf_manipulator_base_to_ee = tf_manipulator_base_to_ee
+
+        if serial_chain is not None:
+            self.serial_chain = serial_chain
+
+        if desired_pose is not None:
+            self.desired_value = desired_pose
+
+    @property
+    def jacobian(self) -> np.ndarray:
+        """Calculate the UVMS Jacobian.
+
+        Returns:
+            The UVMS Jacobian.
+        """
+        # Get the transformation translations
+        # denoted as r_{from frame}{to frame}_{with respect to x frame}
+        eta1 = point_to_array(self.tf_map_to_base.translation)
+        r_B0_B = point_to_array(self.tf_base_to_manipulator_base.translation)
+        eta_0ee_0 = point_to_array(self.tf_manipulator_base_to_ee.translation)
+
+        # Get the transformation rotations
+        # denoted as R_{from frame}_{to frame}
+        R_0_B = np.linalg.inv(
+            quaternion_to_rotation(
+                self.tf_base_to_manipulator_base.rotation
+            ).as_matrix()
+        )
+        R_B_I = np.linalg.inv(
+            quaternion_to_rotation(self.tf_map_to_base.rotation).as_matrix()
+        )
+        R_0_I = R_B_I @ R_0_B
+
+        r_B0_I = R_B_I @ r_B0_B
+        eta_0ee_I = R_0_I @ eta_0ee_0
+
+        def get_skew_matrix(x: np.ndarray) -> np.ndarray:
+            # Expect a 3x1 vector
+            return np.array(
+                [
+                    [0, -x[2][0], x[1][0]],  # type: ignore
+                    [x[2][0], 0, -x[0][0]],
+                    [-x[1][0], x[0][0], 0],
+                ],
+            )
+
+        J = np.zeros((3, 6 + len(self.joint_angles)))
+        J_man = calculate_manipulator_jacobian(self.serial_chain, self.joint_angles)
+
+        # Position Jacobian
+        J[:3, :3] = R_B_I
+        J[:3, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
+        J[:3, 6:] = R_0_I @ J_man[:3]
+
+        return J
+
+    @property
+    def error(self) -> np.ndarray:
+        """Calculate the reference signal for the controller.
+
+        Returns:
+            The reference signal to use to drive the system to the desired end effector
+                pose.
+        """
+        pos_error = np.array(
+            [
+                self.desired_value.translation.x - self.current_value.translation.x,
+                self.desired_value.translation.y - self.current_value.translation.y,
+                self.desired_value.translation.z - self.current_value.translation.z,
+            ]
+        ).reshape((3, 1))
+
+        return pos_error
+
+
+class EndEffectorOrientation(EqualityTask):
+    """Control the end-effector pose."""
+
+    name = "end_effector_orientation_eq"
+
+    def __init__(self, gain: float, priority: float) -> None:
+        """Create a new end effector pose task.
+
+        Args:
+            gain: The task gain.
+            priority: The task priority.
+        """
+        super().__init__(gain, priority)
+
+        self.serial_chain: Any | None = None
+        self.joint_angles = np.zeros((1, 1))
+        self.tf_map_to_base = Transform()
+        self.tf_base_to_manipulator_base = Transform()
+        self.tf_manipulator_base_to_ee = Transform()
+        self.current_value = Transform()
+        self.desired_value = Transform()
+
+    @staticmethod
+    def create_task_from_params(
+        gain: float,
+        priority: float,
+        roll: float | None = None,
+        pitch: float | None = None,
+        yaw: float | None = None,
+    ) -> Any:
+        """Create a new end effector pose task from a set of parameters.
+
+        Args:
+            gain: The task gain.
+            priority: The task priority.
+            roll: The desired end effector roll in the inertial (map) frame. Defaults
+                to None.
+            pitch: The desired end effector pitch in the inertial (map) frame. Defaults
+                to None.
+            yaw: The desired end effector yaw in the inertial (map) frame. Defaults
+                to None.
+
+        Returns:
+            A new end effector pose task.
+        """
+        task = EndEffectorPose(gain, priority)
+
+        if None not in [roll, pitch, yaw]:
+            (
+                task.desired_value.rotation.x,
+                task.desired_value.rotation.y,
+                task.desired_value.rotation.z,
+                task.desired_value.rotation.w,
+            ) = R.from_euler(
+                "xyz", [roll, pitch, yaw]  # type: ignore
+            ).as_quat(
+                False
+            )
+
+        return task
+
+    def update(
+        self,
+        joint_angles: np.ndarray,
+        tf_map_to_ee: Transform,
+        tf_map_to_base: Transform,
+        tf_base_to_manipulator_base: Transform,
+        tf_manipulator_base_to_ee: Transform,
+        serial_chain: Any | None = None,
+        desired_pose: Transform | None = None,
+    ) -> None:
+        """Update the current context of the end effector pose task.
+
+        Args:
+            joint_angles: The current manipulator joint angles.
+            current_pose: The current vehicle pose in the inertial (map) frame.
+            tf_base_to_manipulator_base: The transformation from the vehile base
+                frame to the manipulator base frame.
+            tf_manipulator_base_to_ee: The transformation from the manipulator base
+                frame to the end effector frame.
+            serial_chain: The manipulator kinpy serial chain. Defaults to None.
+            desired_pose: The desired end effector pose. Defaults to None.
+        """
+        self.joint_angles = joint_angles
+
+        self.current_value = tf_map_to_ee
+
+        self.tf_map_to_base = tf_map_to_base
+        self.tf_base_to_manipulator_base = tf_base_to_manipulator_base
+        self.tf_manipulator_base_to_ee = tf_manipulator_base_to_ee
+
+        if serial_chain is not None:
+            self.serial_chain = serial_chain
+
+        if desired_pose is not None:
+            self.desired_value = desired_pose
+
+    @property
+    def jacobian(self) -> np.ndarray:
+        """Calculate the UVMS Jacobian.
+
+        Returns:
+            The UVMS Jacobian.
+        """
+        # Get the transformation rotations
+        # denoted as R_{from frame}_{to frame}
+        R_0_B = np.linalg.inv(
+            quaternion_to_rotation(
+                self.tf_base_to_manipulator_base.rotation
+            ).as_matrix()
+        )
+        R_B_I = np.linalg.inv(
+            quaternion_to_rotation(self.tf_map_to_base.rotation).as_matrix()
+        )
+        R_0_I = R_B_I @ R_0_B
+
+        J = np.zeros((3, 6 + len(self.joint_angles)))
+        J_man = calculate_manipulator_jacobian(self.serial_chain, self.joint_angles)
+
+        # Orientation Jacobian
+        J[:, 3:6] = R_B_I
+        J[:, 6:] = R_0_I @ J_man[3:]
+
+        return J
+
+    @property
+    def error(self) -> np.ndarray:
+        """Calculate the reference signal for the controller.
+
+        Returns:
+            The reference signal to use to drive the system to the desired end effector
+                pose.
+        """
+        ori_error = calculate_quaternion_error(
+            self.desired_value.rotation, self.current_value.rotation
+        )[:3].reshape((3, 1))
+
+        return ori_error

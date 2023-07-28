@@ -26,7 +26,9 @@ import numpy as np
 import yaml  # type: ignore
 from tpik.constraint import EqualityTask, SetTask, Task
 from tpik.tasks import (
+    EndEffectorOrientation,
     EndEffectorPose,
+    EndEffectorPosition,
     JointLimit,
     ManipulatorConfiguration,
     VehicleOrientation,
@@ -45,6 +47,8 @@ _task_library = {
         VehicleRollPitch,
         VehicleYaw,
         VehicleOrientationLimit,
+        EndEffectorPosition,
+        EndEffectorOrientation,
     ]
 }
 
