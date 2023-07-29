@@ -1017,7 +1017,7 @@ class EndEffectorPosition(EqualityTask):
         Returns:
             A new end effector pose task.
         """
-        task = EndEffectorPose(gain, priority)
+        task = EndEffectorPosition(gain, priority)
 
         if None not in [x, y, z]:
             task.desired_value.translation.x = x
@@ -1071,7 +1071,6 @@ class EndEffectorPosition(EqualityTask):
         """
         # Get the transformation translations
         # denoted as r_{from frame}{to frame}_{with respect to x frame}
-        eta1 = point_to_array(self.tf_map_to_base.translation)
         r_B0_B = point_to_array(self.tf_base_to_manipulator_base.translation)
         eta_0ee_0 = point_to_array(self.tf_manipulator_base_to_ee.translation)
 
@@ -1092,11 +1091,12 @@ class EndEffectorPosition(EqualityTask):
 
         def get_skew_matrix(x: np.ndarray) -> np.ndarray:
             # Expect a 3x1 vector
+            x = x.reshape(3)
             return np.array(
                 [
-                    [0, -x[2][0], x[1][0]],  # type: ignore
-                    [x[2][0], 0, -x[0][0]],
-                    [-x[1][0], x[0][0], 0],
+                    [0, -x[2], x[1]],  # type: ignore
+                    [x[2], 0, -x[0]],
+                    [-x[1], x[0], 0],
                 ],
             )
 
@@ -1104,9 +1104,11 @@ class EndEffectorPosition(EqualityTask):
         J_man = calculate_manipulator_jacobian(self.serial_chain, self.joint_angles)
 
         # Position Jacobian
-        J[:3, :3] = R_B_I
-        J[:3, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
-        J[:3, 6:] = R_0_I @ J_man[:3]
+        J[:, :3] = R_B_I
+        J[:, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
+        J[:, 6:] = R_0_I @ J_man[:3]
+
+        self.jman = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
 
         return J
 
@@ -1174,7 +1176,7 @@ class EndEffectorOrientation(EqualityTask):
         Returns:
             A new end effector pose task.
         """
-        task = EndEffectorPose(gain, priority)
+        task = EndEffectorOrientation(gain, priority)
 
         if None not in [roll, pitch, yaw]:
             (

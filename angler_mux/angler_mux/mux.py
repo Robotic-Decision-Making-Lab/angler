@@ -65,7 +65,7 @@ class Mux(Node):
 
         # Create a message filter to synchronize state messages
         self.ts = ApproximateTimeSynchronizer(
-            [self.base_state_sub, self.manipulator_state_sub], 5, 0.02
+            [self.base_state_sub, self.manipulator_state_sub], 1, 0.05
         )
 
         self.ts.registerCallback(self.update_robot_state_cb)

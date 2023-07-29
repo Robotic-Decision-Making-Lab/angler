@@ -29,6 +29,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from std_msgs.msg import String
+from std_srvs.srv import SetBool
 from tf2_ros import TransformException  # type: ignore
 from tf2_ros import Time
 from tf2_ros.buffer import Buffer
@@ -99,13 +100,16 @@ class TPIK(Node):
 
         self.declare_parameter("constraint_config_path", "")
         self.declare_parameter("manipulator_base_link", "alpha_base_link")
-        self.declare_parameter("manipulator_end_link", "alpha_ee_base_link")
+        self.declare_parameter("manipulator_end_link", "alpha_standard_jaws_tool")
         self.declare_parameter("control_rate", 30.0)
 
         # Keep track of the robot state for the tasks
         self.state = RobotState()
         self._description_received = False
         self._init_state_received = False
+
+        # Require a service to arm the controller
+        self._armed = False
 
         # Get the constraints
         self.hierarchy = TaskHierarchy.load_tasks_from_path(
@@ -117,6 +121,17 @@ class TPIK(Node):
         # TF2
         self.tf_buffer = Buffer(cache_time=Duration(seconds=1))
         self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        self.manipulator_base_link_frame = (
+            self.get_parameter("manipulator_end_link")
+            .get_parameter_value()
+            .string_value
+        )
+        self.manipulator_ee_frame = (
+            self.get_parameter("manipulator_end_link")
+            .get_parameter_value()
+            .string_value
+        )
 
         # Subscribers
         self.robot_description_sub = self.create_subscription(
@@ -143,6 +158,11 @@ class TPIK(Node):
             RobotTrajectory, "/angler/robot_trajectory", 1
         )
 
+        # Services
+        self.arm_controller_srv = self.create_service(
+            SetBool, "/angler/tpik/arm", self.arm_controller_cb
+        )
+
         # Create a new callback group for the control loop timer
         self.timer_cb_group = MutuallyExclusiveCallbackGroup()
 
@@ -161,6 +181,37 @@ class TPIK(Node):
             Whether or not the controller has been initialized.
         """
         return self._description_received and self._init_state_received
+
+    def arm_controller_cb(
+        self, request: SetBool.Request, response: SetBool.Response
+    ) -> SetBool.Response:
+        """Arm/disarm the TPIK controller.
+
+        Args:
+            request: The arm/disarm request.
+            response: The request result.
+
+        Returns:
+            The request result.
+        """
+        if request.data:
+            if self.initialized:
+                self._armed = True
+                response.success = self._armed
+                response.message = "Successfully armed the TPIK controller"
+            else:
+                self._armed = False
+                response.success = self._armed
+                response.message = (
+                    "Failed to arm the TPIK controller: controller has not"
+                    " yet been initialized"
+                )
+        else:
+            self._armed = False
+            response.success = True
+            response.message = "Successfully disarmed the TPIK controller"
+
+        return response
 
     def read_robot_description_cb(self, robot_description: String) -> None:
         """Create a kinpy serial chain from the robot description.
@@ -233,6 +284,8 @@ class TPIK(Node):
                 e = t.error
                 K = t.gain * np.eye(e.shape[0])
 
+                self.get_logger().info(f"\n{t.jman}")
+
                 # Use the desired time derivative if the task is time-varying,
                 # otherwise use a regularization task
                 if t.desired_value_dot is not None:
@@ -262,9 +315,10 @@ class TPIK(Node):
 
     def update(self) -> None:
         """Calculate and send the desired system velocities."""
-        # Wait for the system to be initialized before running the controller
-        if not self.initialized:
+        if not self._armed:
             return
+
+        self.update_context()
 
         hierarchies = self.hierarchy.hierarchies
 
@@ -412,7 +466,10 @@ class TPIK(Node):
                 # Get the necessary transforms
                 try:
                     tf_map_to_ee = self.tf_buffer.lookup_transform(
-                        "map", "alpha_ee_base_link", Time()
+                        "map",
+                        "alpha_standard_jaws_tool",
+                        Time(),
+                        Duration(nanoseconds=10000000),
                     )
                 except TransformException as e:
                     self.get_logger().error(
@@ -422,7 +479,10 @@ class TPIK(Node):
                     continue
                 try:
                     tf_base_to_manipulator_base = self.tf_buffer.lookup_transform(
-                        "base_link", "alpha_base_link", Time()
+                        "base_link",
+                        "alpha_base_link",
+                        Time(),
+                        Duration(nanoseconds=10000000),
                     )
                 except TransformException as e:
                     self.get_logger().error(
@@ -433,7 +493,10 @@ class TPIK(Node):
 
                 try:
                     tf_manipulator_base_to_ee = self.tf_buffer.lookup_transform(
-                        "alpha_base_link", "alpha_ee_base_link", Time()
+                        "alpha_base_link",
+                        "alpha_standard_jaws_tool",
+                        Time(),
+                        Duration(nanoseconds=10000000),
                     )
                 except TransformException as e:
                     self.get_logger().error(
@@ -457,8 +520,8 @@ class TPIK(Node):
             state: The current robot state.
         """
         self.state = state
-        self.update_context()
         self._init_state_received = True
+        self.update_context()
 
 
 def main(args: list[str] | None = None):

@@ -34,7 +34,7 @@
       <!-- Front left -->
       <collision>
         <geometry>
-          <box size="0.2285 0.2875 0.071" />
+          <box size="0.2285 0.2875 0.075" />
         </geometry>
         <origin rpy="0 0 0" xyz="0.11425 0.14375 0.08" />
       </collision>
@@ -42,7 +42,7 @@
       <!-- Front right -->
       <collision>
         <geometry>
-          <box size="0.2285 0.2875 0.081" />
+          <box size="0.2285 0.2875 0.085" />
         </geometry>
         <origin rpy="0 0 0" xyz="0.11425 -0.14375 0.08" />
       </collision>
