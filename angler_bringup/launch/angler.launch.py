@@ -292,14 +292,7 @@ def generate_launch_description() -> LaunchDescription:
     gz_spawner = Node(
         package="ros_gz_sim",
         executable="create",
-        arguments=[
-            "-name",
-            "angler",
-            "-topic",
-            "robot_description",
-            "-Y",
-            "1.571",
-        ],
+        arguments=["-name", "angler", "-topic", "robot_description"],
         output="both",
         condition=IfCondition(use_sim),
         parameters=[{"use_sim_time": use_sim}],

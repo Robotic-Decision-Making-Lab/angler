@@ -284,8 +284,6 @@ class TPIK(Node):
                 e = t.error
                 K = t.gain * np.eye(e.shape[0])
 
-                self.get_logger().info(f"\n{t.jman}")
-
                 # Use the desired time derivative if the task is time-varying,
                 # otherwise use a regularization task
                 if t.desired_value_dot is not None:
@@ -296,6 +294,9 @@ class TPIK(Node):
                 updated_system_velocities = np.linalg.pinv(J @ nullspace) @ (
                     t_dot + K @ e - J @ system_velocities
                 )
+                # updated_system_velocities = np.linalg.pinv(J @ nullspace) @ (
+                #     t_dot + K @ e - J @ system_velocities
+                # )
 
                 jacobians.append(J)  # type: ignore
                 updated_nullspace = calculate_nullspace(

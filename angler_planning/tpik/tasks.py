@@ -1069,25 +1069,23 @@ class EndEffectorPosition(EqualityTask):
         Returns:
             The UVMS Jacobian.
         """
-        # Get the transformation translations
-        # denoted as r_{from frame}{to frame}_{with respect to x frame}
-        r_B0_B = point_to_array(self.tf_base_to_manipulator_base.translation)
-        eta_0ee_0 = point_to_array(self.tf_manipulator_base_to_ee.translation)
+        eta1 = point_to_array(self.tf_map_to_base.translation)
 
-        # Get the transformation rotations
-        # denoted as R_{from frame}_{to frame}
-        R_0_B = np.linalg.inv(
-            quaternion_to_rotation(
-                self.tf_base_to_manipulator_base.rotation
-            ).as_matrix()
-        )
+        r_B0_B = point_to_array(self.tf_base_to_manipulator_base.translation)
+        R_0_B = quaternion_to_rotation(
+            self.tf_base_to_manipulator_base.rotation
+        ).as_matrix()
+        J = np.zeros((3, 6 + len(self.serial_chain.get_joint_parameter_names())))
+
+        J_man = calculate_manipulator_jacobian(self.serial_chain, self.joint_angles)
         R_B_I = np.linalg.inv(
             quaternion_to_rotation(self.tf_map_to_base.rotation).as_matrix()
         )
         R_0_I = R_B_I @ R_0_B
 
+        eta_ee1 = point_to_array(self.current_value.translation)
         r_B0_I = R_B_I @ r_B0_B
-        eta_0ee_I = R_0_I @ eta_0ee_0
+        eta_0ee_I = eta_ee1 - eta1 - r_B0_I
 
         def get_skew_matrix(x: np.ndarray) -> np.ndarray:
             # Expect a 3x1 vector
@@ -1100,15 +1098,11 @@ class EndEffectorPosition(EqualityTask):
                 ],
             )
 
-        J = np.zeros((3, 6 + len(self.joint_angles)))
-        J_man = calculate_manipulator_jacobian(self.serial_chain, self.joint_angles)
-
-        # Position Jacobian
-        J[:, :3] = R_B_I
-        J[:, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
+        J[:, 0:3] = R_B_I
+        J[:, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I
         J[:, 6:] = R_0_I @ J_man[:3]
 
-        self.jman = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
+        self.jman = R_B_I @ R_B_I.T
 
         return J
 
