@@ -22,7 +22,7 @@
       <visual>
         <geometry>
           <mesh
-            filename="package://angler_description/meshes/bluerov2_heavy_modified.dae"
+            filename="package://angler_description/meshes/bluerov2_heavy_alpha.dae"
             scale="0.025 0.025 0.025"
           />
         </geometry>

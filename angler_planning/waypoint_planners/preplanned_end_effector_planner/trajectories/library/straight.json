@@ -1,6 +1,7 @@
 {
   "name": "straight",
-  "frame": "map",
+  "parent": "map",
+  "child": "alpha_standard_jaws_tool",
   "waypoints": [
     {
       "transform": {

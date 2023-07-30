@@ -20,52 +20,45 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the Angler planning interface.
+    """Generate a launch description for the Angler control interface.
 
     Returns:
-        LaunchDescription: The Angler planning launch description.
+        LaunchDescription: The Angler control launch description.
     """
     args = [
         DeclareLaunchArgument(
             "config_filepath",
             default_value=None,
-            description="The path to the configuration YAML file",
+            description="The path to the configuration YAML file.",
+        ),
+        DeclareLaunchArgument(
+            "hierarchy_filepath",
+            default_value=None,
+            description="The path to the task hierarchy.",
         ),
         DeclareLaunchArgument(
             "use_sim_time",
             default_value="false",
-            description="Use the simulated Gazebo clock.",
-        ),
-        DeclareLaunchArgument(
-            "use_waypoint_planner",
-            default_value="true",
-            description="Load the selected waypoint planner.",
-        ),
-        DeclareLaunchArgument(
-            "waypoint_planner",
-            default_value="preplanned_end_effector_planner",
-            description="The waypoint planner to load.",
-            choices=["preplanned_end_effector_planner"],
+            description=("Use the simulated Gazebo clock."),
         ),
     ]
 
     nodes = [
         Node(
-            package="angler_planning",
-            executable=LaunchConfiguration("waypoint_planner"),
-            name=LaunchConfiguration("waypoint_planner"),
+            package="angler_control",
+            executable="tpik",
+            name="tpik",
             output="screen",
             parameters=[
                 LaunchConfiguration("config_filepath"),
+                LaunchConfiguration("hierarchy_filepath"),
                 {"use_sim_time": LaunchConfiguration("use_sim_time")},
             ],
-            condition=IfCondition(LaunchConfiguration("use_waypoint_planner")),
         ),
     ]
 
