@@ -1,6 +1,6 @@
-preplanned_mission_planner:
+preplanned_end_effector_planner:
   ros__parameters:
-    mission_name: "straight"
+    trajectory_name: "straight"
 
 tpik:
   ros__parameters:

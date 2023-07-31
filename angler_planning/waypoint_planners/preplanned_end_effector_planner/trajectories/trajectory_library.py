@@ -110,7 +110,7 @@ def create_robot_trajectory_msg(
 class TrajectoryLibrary:
     """A library of pre-planned end-effector trajectories."""
 
-    _library: dict[str, RobotTrajectory]
+    _library: dict[str, RobotTrajectory] = {}
 
     @classmethod
     def add_trajectory(cls, name: str, trajectory: RobotTrajectory) -> None:

@@ -42,8 +42,6 @@ class PrePlannedEndEffectorPlanner(WaypointPlanner):
             "library_path",
             os.path.join(
                 get_package_share_directory("angler_planning"),
-                "waypoint_planners",
-                "preplanned_end_effector_planner",
                 "trajectories",
                 "library",
             ),
