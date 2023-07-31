@@ -1,0 +1,3 @@
+preplanned_end_effector_planner:
+  ros__parameters:
+    trajectory_name: "straight"
