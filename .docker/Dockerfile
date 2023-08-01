@@ -176,7 +176,8 @@ RUN apt-get -q update \
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
     && colcon build \
     # Update /ros_entrypoint.sh to source the workspace
-    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh
+    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh \
+    && echo "source ${USER_WORKSPACE}/setup.sh" >> /home/$USERNAME/.bashrc
 
 ####################################################
 # develop: Setup the image for development purposes

@@ -30,7 +30,7 @@
     name="ReachAlpha5"
     serial_port="$(arg serial_port)"
     state_update_frequency="$(arg state_update_frequency)"
-    initial_positions_file="$(arg initial_positions_file)"
+    initial_positions_file="/bluerov2_heavy_alpha/$(arg initial_positions_file)"
     description_package="${description_package}"
     use_sim="${use_sim}"
     use_fake_hardware="$(arg use_fake_hardware)" />
@@ -43,7 +43,7 @@
       prefix="${prefix}"
       description_package="${description_package}"
       namespace="$(arg namespace)"
-      controllers_file="$(arg controllers_file)" />
+      controllers_file="bluerov2_heavy_alpha/$(arg controllers_file)" />
   </xacro:if>
 
 </robot>

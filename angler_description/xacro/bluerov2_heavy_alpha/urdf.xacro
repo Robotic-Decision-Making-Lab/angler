@@ -23,10 +23,62 @@
       </inertial>
     </link>
 
+    <link name="${prefix}ballast_link">
+      <inertial>
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
+      </inertial>
+
+      <!-- Front-Left -->
+      <collision>
+        <geometry>
+          <box size="0.15 0.15 0.035" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.118 0.21 0.05" />
+      </collision>
+
+      <!-- Front-Right -->
+      <collision>
+        <geometry>
+          <box size="0.15 0.15 0.08" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.118 -0.21 0.05" />
+      </collision>
+
+      <!-- Left -->
+      <collision>
+        <geometry>
+          <box size="0.1 0.1 0.0225" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 0.10375 0.05" />
+      </collision>
+
+      <!-- Right -->
+      <collision>
+        <geometry>
+          <box size="0.1 0.1 0.0225" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0 -0.10375 0.05" />
+      </collision>
+    </link>
+
     <joint name="${prefix}manipulator_mount_joint" type="fixed">
       <origin rpy="0 0 0" xyz="0.24 -0.099 0.029" />
       <parent link="${prefix}base_link" />
       <child link="${prefix}manipulator_mount_link" />
+    </joint>
+
+    <joint name="${prefix}ballast_joint" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <parent link="${prefix}base_link" />
+      <child link="${prefix}ballast_link" />
     </joint>
 
     <!-- Imports -->

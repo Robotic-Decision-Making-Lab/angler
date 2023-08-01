@@ -19,6 +19,14 @@
 # THE SOFTWARE.
 
 from launch import LaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    RegisterEventHandler,
+)
+from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     Command,
     FindExecutable,
@@ -26,12 +34,8 @@ from launch.substitutions import (
     PathJoinSubstitution,
     PythonExpression,
 )
-from launch.event_handlers import OnProcessStart, OnProcessExit
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.conditions import IfCondition, UnlessCondition
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -65,6 +69,30 @@ def generate_launch_description() -> LaunchDescription:
             "config",
             configuration_type,
             "tasks.yaml",
+        ]
+    )
+    planning_file = PathJoinSubstitution(
+        [
+            FindPackageShare(description_package),
+            "config",
+            configuration_type,
+            "planning.yaml",
+        ]
+    )
+    mux_file = PathJoinSubstitution(
+        [
+            FindPackageShare(description_package),
+            "config",
+            configuration_type,
+            "mux.yaml",
+        ]
+    )
+    initial_positions_file = PathJoinSubstitution(
+        [
+            FindPackageShare(description_package),
+            "config",
+            configuration_type,
+            "initial_positions.yaml",
         ]
     )
 
@@ -114,7 +142,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "rviz_config",
-            default_value="view_angler.rviz",
+            default_value="view_bluerov2_heavy_alpha.rviz",
             description="The RViz2 configuration file.",
         ),
         DeclareLaunchArgument(
@@ -159,6 +187,11 @@ def generate_launch_description() -> LaunchDescription:
                 " set to true when using the motion capture system for localization."
             ),
         ),
+        DeclareLaunchArgument(
+            "gazebo_world_file",
+            default_value="bluerov2_heavy_alpha_underwater.world",
+            description="The Gazebo world file to launch.",
+        ),
     ]
 
     use_sim = LaunchConfiguration("use_sim")
@@ -195,13 +228,7 @@ def generate_launch_description() -> LaunchDescription:
         output="both",
         namespace=namespace,
         parameters=[
-            PathJoinSubstitution(
-                [
-                    FindPackageShare(description_package),
-                    "config",
-                    controllers_file,
-                ]
-            ),
+            controllers_file,
             {"use_sim_time": use_sim, "robot_description": robot_description},
         ],
         condition=UnlessCondition(use_sim),
@@ -252,6 +279,7 @@ def generate_launch_description() -> LaunchDescription:
 
     nodes = [
         control_node,
+        rviz,
         RegisterEventHandler(
             event_handler=OnProcessStart(
                 target_action=control_node,
@@ -274,7 +302,9 @@ def generate_launch_description() -> LaunchDescription:
             package="robot_state_publisher",
             executable="robot_state_publisher",
             output="both",
-            parameters=[robot_description, {"use_sim_time": use_sim}],
+            parameters=[
+                {"use_sim_time": use_sim, "robot_description": robot_description}
+            ],
         ),
         Node(
             package="angler_utils",
@@ -282,9 +312,7 @@ def generate_launch_description() -> LaunchDescription:
             name="initial_position_setter",
             parameters=[
                 {
-                    "initial_positions_file": PathJoinSubstitution(
-                        [FindPackageShare(description_package), "config", "initial_positions.yaml"]
-                    ),
+                    "initial_positions_file": initial_positions_file,
                     "controller_cmd_topic": "/forward_velocity_controller/commands",
                     "use_sim_time": use_sim,
                 }
@@ -318,8 +346,8 @@ def generate_launch_description() -> LaunchDescription:
                 "use_camera": LaunchConfiguration("use_camera"),
                 "use_mocap": LaunchConfiguration("use_mocap"),
                 "use_sim": LaunchConfiguration("use_sim"),
-                "use_rviz": "false",
-                "gazebo_world_file": "bluerov2_heavy_alpha_underwater.world",  # noqa
+                "use_rviz": "false",  # Use our own version
+                "gazebo_world_file": LaunchConfiguration("gazebo_world_file"),
                 "prefix": LaunchConfiguration("prefix"),
                 "robot_description": robot_description,
             }.items(),
@@ -344,13 +372,7 @@ def generate_launch_description() -> LaunchDescription:
                 )
             ),
             launch_arguments={
-                "config_filepath": PathJoinSubstitution(
-                    [
-                        FindPackageShare(description_package),
-                        "config",
-                        LaunchConfiguration("planning_file"),
-                    ]
-                ),
+                "config_filepath": planning_file,
                 "use_sim_time": use_sim,
             }.items(),
         ),
@@ -359,26 +381,22 @@ def generate_launch_description() -> LaunchDescription:
                 PathJoinSubstitution([FindPackageShare("angler_mux"), "mux.launch.py"])
             ),
             launch_arguments={
-                "config_filepath": PathJoinSubstitution(
-                    [
-                        FindPackageShare(description_package),
-                        "config",
-                        LaunchConfiguration("mux_file"),
-                    ]
-                ),
+                "config_filepath": mux_file,
                 "use_sim_time": use_sim,
             }.items(),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([FindPackageShare("angler_control"), "control.launch.py"])
-            ),
-            launch_arguments={
-                "config_filepath": controllers_file,
-                "hierarchy_filepath": tasks_file,
-                "use_sim_time": use_sim,
-            }.items(),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         PathJoinSubstitution(
+        #             [FindPackageShare("angler_control"), "control.launch.py"]
+        #         )
+        #     ),
+        #     launch_arguments={
+        #         "config_filepath": controllers_file,
+        #         "hierarchy_filepath": tasks_file,
+        #         "use_sim_time": use_sim,
+        #     }.items(),
+        # ),
     ]
 
     return LaunchDescription(args + nodes + includes)

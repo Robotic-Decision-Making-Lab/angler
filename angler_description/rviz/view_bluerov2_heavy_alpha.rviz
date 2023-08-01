@@ -69,10 +69,12 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         alpha_ee_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         alpha_m1_link:
           Alpha: 1
           Show Axes: false
@@ -102,6 +104,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         alpha_standard_jaws_base_link:
           Alpha: 1
           Show Axes: false
@@ -117,6 +120,10 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        alpha_standard_jaws_tool:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         base_footprint:
           Alpha: 1
           Show Axes: false
@@ -130,6 +137,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         thruster1:
           Alpha: 1
           Show Axes: false
