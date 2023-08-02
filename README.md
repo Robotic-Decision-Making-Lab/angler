@@ -8,7 +8,8 @@ and deployment of underwater vehicle manipulator systems (UVMS).
 The main features of the project include:
 
 - Support for developing custom whole-body controllers alongside the existing
-  algorithms like Set-Based Task-Priority Inverse Kinematic (TPIK) control
+  control algorithms like Set-Based Task-Priority Inverse Kinematic (TPIK)
+  control
 - Support for developing custom trajectory and motion planning algorithms
 - ArduSub + Gazebo SITL integration for evaluating the performance of your
   system in a simulation environment
