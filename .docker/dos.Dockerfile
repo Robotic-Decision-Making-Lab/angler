@@ -58,7 +58,7 @@ COPY . src/angler
 RUN apt-get -q update \
     && apt-get -q -y upgrade \
     && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
     && rm -rf src \
     && apt-get autoremove -y \
     && apt-get clean -y \
@@ -67,6 +67,7 @@ RUN apt-get -q update \
 FROM ci as deps
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV GZ_VERSION=garden
 
 # Install gstreamer
 RUN apt-get -q update \
@@ -95,16 +96,16 @@ USER $USERNAME
 ENV USER=$USERNAME
 
 # Create a user-level ROS workspace for us to use
-ENV USER_WORKSPACE=/home/$USERNAME/ws_angler/install
-WORKDIR $USER_WORKSPACE/..
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
+WORKDIR $USER_WORKSPACE
 
 # Install the external project requirements
-COPY angler.repos src/
+COPY --chown=$USER_UID:$USER_GID angler.repos src/
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
     && vcs import src < src/angler.repos \
     && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
     && rm -rf angler.repos \
     && sudo apt-get autoremove -y \
     && sudo apt-get clean -y \
@@ -113,15 +114,15 @@ RUN sudo apt-get -q update \
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
     && colcon build \
     # Update .bashrc to source the workspace
-    && echo "source ${USER_WORKSPACE}/setup.sh" >> /home/$USERNAME/.bashrc
+    && echo "source ${USER_WORKSPACE}/install/setup.sh" >> /home/$USERNAME/.bashrc
 
 # Now install any remaining Angler rosdeps
-COPY . src/angler
+COPY --chown=$USER_UID:$USER_GID . src/angler
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
     && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
-    && rm -rf src \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
+    && rm -rf src/angler \
     && sudo apt-get autoremove -y \
     && sudo apt-get clean -y \
     && sudo rm -rf /var/lib/apt/lists/*
@@ -140,25 +141,6 @@ RUN sudo apt-get -q update \
     && sudo apt-get clean -y \
     && sudo rm -rf /var/lib/apt/lists/*
 
-FROM deps as robot
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-ENV USER_WORKSPACE=/home/$USERNAME/ws_angler/install
-WORKDIR $USER_WORKSPACE/..
-
-# Get the source code and build
-# We don't need to update the .bashrc file this time, that was
-# done in the previous stage
-COPY . src/angler
-RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
-    && colcon build
-
-# Now change ownership of the workspace to the user
-WORKDIR /home/$USERNAME/
-RUN sudo chown $USER_UID:$USER_GID -R ws_angler
-
-FROM deps as sim
 # Inspiration for this stage comes from the following source
 # https://github.com/clydemcqueen/orca4/blob/77152829e1d65781717ca55379c229145d6006e9/docker/Dockerfile#L1
 
@@ -212,25 +194,24 @@ RUN [ "/bin/bash" , "-c" , " \
     && cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     && make -j4" ]
 
-# Install the external simulation packages
-# Most of these dependencies should go away in the future, but they exist
-# now because they are either buggy or need to be built from source to support
-# Gazebo Garden
-ENV USER_WORKSPACE=/home/$USERNAME/ws_angler/install
-WORKDIR $USER_WORKSPACE/..
-COPY sim.repos src/
-RUN sudo apt-get -q update \
-    && sudo apt-get -q -y upgrade \
-    && vcs import src < src/sim.repos \
-    && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
-    && sudo apt-get autoremove -y \
-    && sudo apt-get clean -y \
-    && sudo rm -rf /var/lib/apt/lists/*
-
 # Setup the environment variables needed for simulation
 COPY .docker/entrypoints/sim.sh /
 RUN echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc
+
+FROM deps as robot
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
+WORKDIR $USER_WORKSPACE
+
+# Get the source code and build
+# We don't need to update the .bashrc file this time, that was
+# done in the previous stage
+COPY --chown=$USER_UID:$USER_GID . src/angler
+RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
+    && colcon build \
+    && . "install/setup.sh"
 
 FROM sim as develop
 
