@@ -35,37 +35,31 @@
           izz="0.0001"
         />
       </inertial>
+      <!-- Split the collision into four boxes so that
+      we can adjust each one to balance things out -->
 
-      <!-- Front-Left -->
+      <!-- Front left -->
       <collision>
         <geometry>
-          <box size="0.15 0.15 0.035" />
+          <box size="0.2285 0.2875 0.015" />
         </geometry>
-        <origin rpy="0 0 0" xyz="0.118 0.21 0.05" />
+        <origin rpy="0 0 0" xyz="0.11425 0.14375 0.08" />
       </collision>
 
-      <!-- Front-Right -->
+      <!-- Front right -->
       <collision>
         <geometry>
-          <box size="0.15 0.15 0.08" />
+          <box size="0.2285 0.2875 0.035" />
         </geometry>
-        <origin rpy="0 0 0" xyz="0.118 -0.21 0.05" />
+        <origin rpy="0 0 0" xyz="0.11425 -0.14375 0.08" />
       </collision>
 
-      <!-- Left -->
+      <!-- Back right -->
       <collision>
         <geometry>
-          <box size="0.1 0.1 0.0225" />
+          <box size="0.2285 0.2875 0.005" />
         </geometry>
-        <origin rpy="0 0 0" xyz="0 0.10375 0.05" />
-      </collision>
-
-      <!-- Right -->
-      <collision>
-        <geometry>
-          <box size="0.1 0.1 0.0225" />
-        </geometry>
-        <origin rpy="0 0 0" xyz="0 -0.10375 0.05" />
+        <origin rpy="0 0 0" xyz="-0.11425 -0.14375 0.08" />
       </collision>
     </link>
 

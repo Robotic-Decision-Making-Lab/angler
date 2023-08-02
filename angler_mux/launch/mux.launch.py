@@ -44,9 +44,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "mux",
-            default_value="single_manipulator_mux",
+            default_value="single_manipulator_velocity_mux",
             description="The state mux type to load.",
-            choices=["single_manipulator_mux"],
+            choices=["single_manipulator_velocity_mux"],
         ),
         DeclareLaunchArgument(
             "use_sim_time",

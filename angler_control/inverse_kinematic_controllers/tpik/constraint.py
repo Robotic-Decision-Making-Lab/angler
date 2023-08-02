@@ -27,7 +27,7 @@ import numpy as np
 Threshold = namedtuple("Threshold", ["lower", "upper"])
 
 
-class Task(ABC):
+class Constraint(ABC):
     """Base class for defining a task."""
 
     # The name of the task. This is used to reference the task at launch.
@@ -99,7 +99,7 @@ class Task(ABC):
         raise NotImplementedError("This method has not yet been implemented!")
 
 
-class EqualityTask(Task):
+class EqualityConstraint(Constraint):
     """Constraint which drives the system to a single value."""
 
     def __init__(self, gain: float, priority: float) -> None:
@@ -112,7 +112,7 @@ class EqualityTask(Task):
         super().__init__(gain, priority)
 
 
-class SetTask(Task):
+class SetConstraint(Constraint):
     """Constraint which limits a task value to a range."""
 
     def __init__(

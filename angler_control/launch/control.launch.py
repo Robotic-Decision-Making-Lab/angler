@@ -20,7 +20,8 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -37,28 +38,40 @@ def generate_launch_description() -> LaunchDescription:
             description="The path to the configuration YAML file.",
         ),
         DeclareLaunchArgument(
-            "hierarchy_filepath",
+            "hierarchy_file",
             default_value=None,
-            description="The path to the task hierarchy.",
+            description="The path to the TPIK task hierarchy.",
         ),
         DeclareLaunchArgument(
             "use_sim_time",
             default_value="false",
             description=("Use the simulated Gazebo clock."),
         ),
+        DeclareLaunchArgument(
+            "controller",
+            default_value="tpik",
+            description="The whole-body controller to load.",
+            choices=["tpik"],
+        ),
     ]
 
+    controller = LaunchConfiguration("controller")
+
     nodes = [
+        # Create a separate node for TPIK because it requires the task hierarchy file
         Node(
             package="angler_control",
-            executable="tpik",
-            name="tpik",
+            executable=controller,
+            name=controller,
             output="screen",
             parameters=[
-                LaunchConfiguration("config_filepath"),
-                LaunchConfiguration("hierarchy_filepath"),
-                {"use_sim_time": LaunchConfiguration("use_sim_time")},
+                {
+                    "config_filepath": LaunchConfiguration("config_filepath"),
+                    "hierarchy_file": LaunchConfiguration("hierarchy_file"),
+                    "use_sim_time": LaunchConfiguration("use_sim_time"),
+                }
             ],
+            condition=IfCondition(PythonExpression(["'", controller, "' == 'tpik'"])),
         ),
     ]
 

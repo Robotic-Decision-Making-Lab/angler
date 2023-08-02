@@ -22,6 +22,19 @@ import kinpy
 import numpy as np
 import rclpy
 from geometry_msgs.msg import Transform, Twist
+from inverse_kinematic_controllers.tpik.constraint import (
+    EqualityConstraint,
+    SetConstraint,
+)
+from inverse_kinematic_controllers.tpik.hierarchy import TaskHierarchy
+from inverse_kinematic_controllers.tpik.tasks import (
+    EndEffectorPoseTask,
+    ManipulatorJointConfigurationTask,
+    ManipulatorJointLimitTask,
+    VehicleOrientationTask,
+    VehicleRollPitchTask,
+    VehicleYawTask,
+)
 from moveit_msgs.msg import RobotState, RobotTrajectory
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.duration import Duration
@@ -34,24 +47,7 @@ from tf2_ros import TransformException  # type: ignore
 from tf2_ros import Time
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-from tpik.constraint import EqualityTask, SetTask
-from tpik.hierarchy import TaskHierarchy
-from tpik.tasks import (
-    EndEffectorOrientation,
-    EndEffectorPose,
-    EndEffectorPosition,
-    JointLimit,
-    ManipulatorConfiguration,
-    VehicleOrientation,
-    VehicleOrientationLimit,
-    VehicleRollPitch,
-    VehicleYaw,
-)
 from trajectory_msgs.msg import JointTrajectoryPoint, MultiDOFJointTrajectoryPoint
-
-np.set_printoptions(
-    edgeitems=30, linewidth=100000, formatter=dict(float=lambda x: "%.3g" % x)
-)
 
 
 def calculate_nullspace(augmented_jacobian: np.ndarray) -> np.ndarray:
@@ -98,24 +94,44 @@ class TPIK(Node):
         """Create a new TPIK node."""
         super().__init__("tpik")
 
-        self.declare_parameter("constraint_config_path", "")
+        self.declare_parameter("hierarchy_file", "")
+        self.declare_parameter("inertial_frame", "map")
+        self.declare_parameter("base_frame", "base_link")
         self.declare_parameter("manipulator_base_link", "alpha_base_link")
         self.declare_parameter("manipulator_end_link", "alpha_standard_jaws_tool")
-        self.declare_parameter("control_rate", 30.0)
+        self.declare_parameter("control_rate", 50.0)
 
         # Keep track of the robot state for the tasks
         self.state = RobotState()
+
+        # Don't run the controller until everything has been properly initialized
         self._description_received = False
         self._init_state_received = False
 
-        # Require a service to arm the controller
+        # Require a service call to arm the controller
         self._armed = False
+
+        # Keep track of the frames
+        self.inertial_frame = (
+            self.get_parameter("inertial_frame").get_parameter_value().string_value
+        )
+        self.base_frame = (
+            self.get_parameter("base_frame").get_parameter_value().string_value
+        )
+        self.manipulator_base_frame = (
+            self.get_parameter("manipulator_base_link")
+            .get_parameter_value()
+            .string_value
+        )
+        self.manipulator_ee_frame = (
+            self.get_parameter("manipulator_end_link")
+            .get_parameter_value()
+            .string_value
+        )
 
         # Get the constraints
         self.hierarchy = TaskHierarchy.load_tasks_from_path(
-            self.get_parameter("constraint_config_path")
-            .get_parameter_value()
-            .string_value
+            self.get_parameter("hierarchy_file").get_parameter_value().string_value
         )
 
         # TF2
@@ -145,12 +161,6 @@ class TPIK(Node):
             "/angler/state",
             self.robot_state_cb,
             qos_profile=qos_profile_sensor_data,
-        )
-        self.joint_trajectory_sub = self.create_subscription(
-            RobotTrajectory,
-            "/angler/reference_trajectory",
-            self.update_trajectory_cb,
-            1,
         )
 
         # Publishers
@@ -251,11 +261,8 @@ class TPIK(Node):
 
         self.get_logger().debug("Robot description received!")
 
-    def update_trajectory_cb(self, trajectory: RobotTrajectory) -> None:
-        ...
-
     def calculate_system_velocity(
-        self, hierarchy: list[EqualityTask | SetTask]
+        self, hierarchy: list[EqualityConstraint | SetConstraint]
     ) -> np.ndarray:
         """Calculate the system velocities using TPIK control.
 
@@ -271,7 +278,7 @@ class TPIK(Node):
         nullspace = np.eye(hierarchy[0].jacobian.shape[1])
 
         def calculate_system_velocity_rec(
-            hierarchy: list[EqualityTask | SetTask],
+            hierarchy: list[EqualityConstraint | SetConstraint],
             system_velocities: np.ndarray,
             jacobians: list[np.ndarray],
             nullspace: np.ndarray,
@@ -294,9 +301,6 @@ class TPIK(Node):
                 updated_system_velocities = np.linalg.pinv(J @ nullspace) @ (
                     t_dot + K @ e - J @ system_velocities
                 )
-                # updated_system_velocities = np.linalg.pinv(J @ nullspace) @ (
-                #     t_dot + K @ e - J @ system_velocities
-                # )
 
                 jacobians.append(J)  # type: ignore
                 updated_nullspace = calculate_nullspace(
@@ -325,7 +329,7 @@ class TPIK(Node):
 
         # Check whether or not the hierarchies have any set tasks
         has_set_tasks = any(
-            [any([isinstance(y, SetTask) for y in x]) for x in hierarchies]
+            [any([isinstance(y, SetConstraint) for y in x]) for x in hierarchies]
         )
 
         if not has_set_tasks:
@@ -342,7 +346,7 @@ class TPIK(Node):
                 set_tasks = [
                     set_task
                     for set_task in self.hierarchy.active_task_hierarchy
-                    if isinstance(set_task, SetTask)
+                    if isinstance(set_task, SetConstraint)
                 ]
 
                 # Check whether or not the solution will drive the system to the safe
@@ -429,80 +433,52 @@ class TPIK(Node):
 
         return trajectory
 
+    def robot_state_cb(self, state: RobotState) -> None:
+        """Update the current robot state.
+
+        Args:
+            state: The current robot state.
+        """
+        self.state = state
+        self._init_state_received = True
+        self.update_context()
+
     def update_context(self) -> None:
         """Update the current state variables for each task."""
+        # Get some of the more commonly used state variables
+        # The joint state includes the linear jaws joint angle. We exclude this,
+        # because we aren't controlling it within this specific framework.
+        joint_angles = np.array(self.state.joint_state.position[1:][::-1])
+        vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
+
         for task in self.hierarchy.tasks:
-            if isinstance(task, JointLimit):
-                # The joint state includes the linear jaws joint angle. We exclude this,
-                # because we aren't controlling it within this specific framework.
-                joint_angles = self.state.joint_state.position[1:][::-1]
-                joint_angle = np.array(joint_angles)[task.joint - 6]
+            if isinstance(task, ManipulatorJointLimitTask):
+                joint_angle = joint_angles[task.joint - 6]
                 task.update(joint_angle)
                 task.set_task_active(joint_angle)
-            elif isinstance(task, VehicleOrientationLimit):
-                vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
+            elif isinstance(task, VehicleRollPitchTask):
                 task.update(vehicle_pose.rotation)
-                task.set_task_active(vehicle_pose.rotation)
-            elif isinstance(task, VehicleRollPitch):
-                vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
+            elif isinstance(task, ManipulatorJointConfigurationTask):
+                task.update(joint_angles.reshape((len(joint_angles), 1)))
+            elif isinstance(task, VehicleYawTask):
                 task.update(vehicle_pose.rotation)
-            elif isinstance(task, ManipulatorConfiguration):
-                joint_angles = np.array(self.state.joint_state.position)[1:][::-1]  # type: ignore # noqa
-                joint_angles = joint_angles.reshape((len(joint_angles), 1))
-                task.update(joint_angles)
-            elif isinstance(task, VehicleYaw):
-                vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
+            elif isinstance(task, VehicleOrientationTask):
                 task.update(vehicle_pose.rotation)
-            elif isinstance(task, VehicleOrientation):
-                vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
-                task.update(vehicle_pose.rotation)
-            elif (
-                isinstance(task, EndEffectorPose)
-                or isinstance(task, EndEffectorPosition)
-                or isinstance(task, EndEffectorOrientation)
-            ):
-                joint_angles = np.array(self.state.joint_state.position)[1:][::-1]  # type: ignore # noqa
-                vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
-
+            elif isinstance(task, EndEffectorPoseTask):
                 # Get the necessary transforms
                 try:
                     tf_map_to_ee = self.tf_buffer.lookup_transform(
-                        "map",
-                        "alpha_standard_jaws_tool",
-                        Time(),
-                        Duration(nanoseconds=10000000),
+                        self.inertial_frame, self.manipulator_ee_frame, Time()
                     )
-                except TransformException as e:
-                    self.get_logger().error(
-                        "Unable to get the transformation from the map frame"
-                        f" to the end effector frame: {e}"
-                    )
-                    continue
-                try:
                     tf_base_to_manipulator_base = self.tf_buffer.lookup_transform(
-                        "base_link",
-                        "alpha_base_link",
-                        Time(),
-                        Duration(nanoseconds=10000000),
+                        self.base_frame, self.manipulator_base_frame, Time()
                     )
-                except TransformException as e:
-                    self.get_logger().error(
-                        "Unable to get the transformation from the manipulator base"
-                        f" frame to the vehicle base frame: {e}"
-                    )
-                    continue
-
-                try:
                     tf_manipulator_base_to_ee = self.tf_buffer.lookup_transform(
-                        "alpha_base_link",
-                        "alpha_standard_jaws_tool",
-                        Time(),
-                        Duration(nanoseconds=10000000),
+                        self.manipulator_base_frame, self.manipulator_ee_frame, Time()
                     )
                 except TransformException as e:
                     self.get_logger().error(
-                        "Unable to get the transformation from the manipulator base"
-                        f" frame to the end effector frame: {e}"
+                        f"Unable to update the end-effector pose task: {e}"
                     )
                     continue
 
@@ -513,16 +489,6 @@ class TPIK(Node):
                     tf_base_to_manipulator_base.transform,
                     tf_manipulator_base_to_ee.transform,
                 )
-
-    def robot_state_cb(self, state: RobotState) -> None:
-        """Update the current robot state.
-
-        Args:
-            state: The current robot state.
-        """
-        self.state = state
-        self._init_state_received = True
-        self.update_context()
 
 
 def main(args: list[str] | None = None):

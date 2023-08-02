@@ -28,27 +28,21 @@ from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import JointState
 
 
-class Mux(Node):
-    """Mux all UVMS state information and proxy state to a single topic."""
+class SingleManipulatorMux(Node):
+    """Multiplex the state information for a vehicle with a single manipulator."""
 
-    def __init__(self, node_name: str = "angler_mux") -> None:
-        """Create a new mux interface.
+    def __init__(self) -> None:
+        """Create a new multiplexer."""
+        super().__init__("single_manipulator_velocity_mux")
 
-        Args:
-            node_name: The name of the ROS 2 node. Defaults to "angler_mux".
-        """
-        super().__init__(node_name)
-
-        # Maintain the UVMS state
         self.robot_state = RobotState()
 
-        # Publishers
-        self.uvms_state_pub = self.create_publisher(
+        self.state_pub = self.create_publisher(
             RobotState, "/angler/state", qos_profile=qos_profile_sensor_data
         )
 
-        # Subscribers
-        self.base_state_sub = Subscriber(
+        # Get the state using message filter subscribers
+        self.vehicle_state_sub = Subscriber(
             self,
             Odometry,
             "/mavros/local_position/odom",
@@ -65,7 +59,7 @@ class Mux(Node):
 
         # Create a message filter to synchronize state messages
         self.ts = ApproximateTimeSynchronizer(
-            [self.base_state_sub, self.manipulator_state_sub], 1, 0.05
+            [self.vehicle_state_sub, self.manipulator_state_sub], 1, 0.05
         )
 
         self.ts.registerCallback(self.update_robot_state_cb)
@@ -99,14 +93,14 @@ class Mux(Node):
         self.robot_state.joint_state = joint_state
 
         # Publish the UVMS state each time we get an update
-        self.uvms_state_pub.publish(self.robot_state)
+        self.state_pub.publish(self.robot_state)
 
 
-def main(args: list[str] | None = None):
+def main_single_manipulator_mux(args: list[str] | None = None):
     """Run the mux for a single manipulator."""
     rclpy.init(args=args)
 
-    node = Mux()
+    node = SingleManipulatorMux()
     rclpy.spin(node)
 
     node.destroy_node()

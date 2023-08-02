@@ -24,45 +24,24 @@ from typing import Any
 
 import numpy as np
 import yaml  # type: ignore
-from tpik.constraint import EqualityTask, SetTask, Task
-from tpik.tasks import (
-    EndEffectorOrientation,
-    EndEffectorPose,
-    EndEffectorPosition,
-    JointLimit,
-    ManipulatorConfiguration,
-    VehicleOrientation,
-    VehicleOrientationLimit,
-    VehicleRollPitch,
-    VehicleYaw,
+from inverse_kinematic_controllers.tpik.constraint import (
+    Constraint,
+    EqualityConstraint,
+    SetConstraint,
 )
-
-_task_library = {
-    task.name: task  # type: ignore
-    for task in [
-        EndEffectorPose,
-        JointLimit,
-        ManipulatorConfiguration,
-        VehicleOrientation,
-        VehicleRollPitch,
-        VehicleYaw,
-        VehicleOrientationLimit,
-        EndEffectorPosition,
-        EndEffectorOrientation,
-    ]
-}
+from inverse_kinematic_controllers.tpik.tasks import task_library
 
 
 class TaskHierarchy:
     """Interface for loading and managing a task hierarchy."""
 
-    def __init__(self, tasks: list[Task]) -> None:
+    def __init__(self, tasks: list[Constraint]) -> None:
         """Create a new task hierarchy."""
         # Make sure that the tasks are sorted according to their priority
         self.tasks = sorted(tasks, key=lambda task: task.priority)
 
     @property
-    def active_task_hierarchy(self) -> list[Task]:
+    def active_task_hierarchy(self) -> list[Constraint]:
         """Get the set of activated tasks, ordered from highest priority to lowest.
 
         Returns:
@@ -71,12 +50,12 @@ class TaskHierarchy:
         return [
             task
             for task in self.tasks
-            if (isinstance(task, SetTask) and task.active)
-            or isinstance(task, EqualityTask)
+            if (isinstance(task, SetConstraint) and task.active)
+            or isinstance(task, EqualityConstraint)
         ]
 
     @property
-    def hierarchies(self) -> list[list[SetTask | EqualityTask]]:
+    def hierarchies(self) -> list[list[SetConstraint | EqualityConstraint]]:
         """Get the set of all potential mode combinations for the active task hierarchy.
 
         Returns:
@@ -86,7 +65,7 @@ class TaskHierarchy:
             [
                 set_task
                 for set_task in self.active_task_hierarchy
-                if isinstance(set_task, SetTask)
+                if isinstance(set_task, SetConstraint)
             ]
         )
 
@@ -97,12 +76,16 @@ class TaskHierarchy:
         # 1's will appear at lower indices
         combinations = sorted(combinations, key=lambda row: -np.sum(row))
 
-        hierarchy_combinations: list[list[SetTask | EqualityTask]] = []
+        hierarchy_combinations: list[list[SetConstraint | EqualityConstraint]] = []
 
         # If there are no set-based tasks active, then just return the equality tasks
         if not combinations:
             hierarchy_combinations.append(
-                [eq_task for eq_task in self.tasks if isinstance(eq_task, EqualityTask)]
+                [
+                    eq_task
+                    for eq_task in self.tasks
+                    if isinstance(eq_task, EqualityConstraint)
+                ]
             )
             return hierarchy_combinations
 
@@ -111,14 +94,14 @@ class TaskHierarchy:
             # Keep track of which set-based task we are referencing
             set_task_idx = 0
 
-            hierarchy: list[SetTask | EqualityTask] = []
+            hierarchy: list[SetConstraint | EqualityConstraint] = []
 
             for task in self.active_task_hierarchy:
-                if isinstance(task, SetTask):
+                if isinstance(task, SetConstraint):
                     if combination[set_task_idx]:
                         hierarchy.append(task)
                     set_task_idx += 1
-                elif isinstance(task, EqualityTask):
+                elif isinstance(task, EqualityConstraint):
                     hierarchy.append(task)
 
             # hierarchy
@@ -140,24 +123,25 @@ class TaskHierarchy:
         if not os.path.isfile(filepath):
             raise ValueError(
                 "The provided task configuration file is not valid. Please ensure that"
-                " the path is defined correctly and is visible to ROS at runtime."
+                " the path is defined correctly and is visible to ROS at runtime:"
+                f" {filepath}"
             )
 
         with open(filepath, encoding="utf-8") as task_f:
             hierarchy: list[dict[str, Any]] = yaml.safe_load(task_f)
 
-            tasks: list[Task] = []
+            tasks: list[Constraint] = []
 
             for task in hierarchy:
                 name = task.pop("task")
 
-                if name is None or name not in _task_library.keys():
+                if name is None or name not in task_library.keys():
                     raise ValueError(
                         "The provided task hierarchy contains an invalid task"
                         f" type: {name}"
                     )
 
-                constraint = _task_library[name].create_task_from_params(  # type: ignore # noqa
+                constraint = task_library[name].create_task_from_params(  # type: ignore # noqa
                     **task,
                 )
 

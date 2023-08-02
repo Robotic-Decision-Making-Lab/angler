@@ -23,6 +23,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
     RegisterEventHandler,
+    TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
@@ -188,9 +189,31 @@ def generate_launch_description() -> LaunchDescription:
             ),
         ),
         DeclareLaunchArgument(
+            "use_waypoint_planner",
+            default_value="true",
+            description="Load a waypoint planner.",
+        ),
+        DeclareLaunchArgument(
+            "use_whole_body_control",
+            default_value="true",
+            description="Load a whole-body controller.",
+        ),
+        DeclareLaunchArgument(
             "gazebo_world_file",
             default_value="bluerov2_heavy_alpha_underwater.world",
             description="The Gazebo world file to launch.",
+        ),
+        DeclareLaunchArgument(
+            "waypoint_planner",
+            default_value="preplanned_end_effector_waypoint_planner",
+            description="The waypoint planner to load.",
+            choices=["preplanned_end_effector_waypoint_planner"],
+        ),
+        DeclareLaunchArgument(
+            "whole_body_controller",
+            default_value="tpik",
+            description="The whole-body controller to load.",
+            choices=["tpik"],
         ),
     ]
 
@@ -286,6 +309,9 @@ def generate_launch_description() -> LaunchDescription:
                 on_start=[joint_state_broadcaster_spawner],
             )
         ),
+        # We need to wait for the Gazebo spawner to finish, but
+        # don't have access to that because it is called from blue
+        TimerAction(period=2.0, actions=[joint_state_broadcaster_spawner]),
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster_spawner, on_exit=[rviz]
@@ -328,6 +354,24 @@ def generate_launch_description() -> LaunchDescription:
                     ]
                 )
             ),
+        ),
+        Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            name="base_link_to_base_footprint",
+            arguments=[
+                "--x",
+                "-0.0",
+                "--y",
+                "0.0",
+                "--z",
+                "0.0",
+                "--frame-id",
+                ["base_link"],
+                "--child-frame-id",
+                ["base_footprint"],
+            ],
+            output="screen",
         ),
     ]
 
@@ -372,6 +416,8 @@ def generate_launch_description() -> LaunchDescription:
                 )
             ),
             launch_arguments={
+                "use_waypoint_planner": LaunchConfiguration("use_waypoint_planner"),
+                "waypoint_planner": LaunchConfiguration("waypoint_planner"),
                 "config_filepath": planning_file,
                 "use_sim_time": use_sim,
             }.items(),
@@ -385,18 +431,20 @@ def generate_launch_description() -> LaunchDescription:
                 "use_sim_time": use_sim,
             }.items(),
         ),
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(
-        #         PathJoinSubstitution(
-        #             [FindPackageShare("angler_control"), "control.launch.py"]
-        #         )
-        #     ),
-        #     launch_arguments={
-        #         "config_filepath": controllers_file,
-        #         "hierarchy_filepath": tasks_file,
-        #         "use_sim_time": use_sim,
-        #     }.items(),
-        # ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("angler_control"), "control.launch.py"]
+                )
+            ),
+            launch_arguments={
+                "controller": LaunchConfiguration("whole_body_controller"),
+                "config_filepath": controllers_file,
+                "hierarchy_file": tasks_file,
+                "use_sim_time": use_sim,
+            }.items(),
+            condition=IfCondition(LaunchConfiguration("use_whole_body_control")),
+        ),
     ]
 
     return LaunchDescription(args + nodes + includes)

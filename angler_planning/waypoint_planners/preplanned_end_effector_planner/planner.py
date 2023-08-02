@@ -35,7 +35,7 @@ class PrePlannedEndEffectorPlanner(WaypointPlanner):
 
     def __init__(self) -> None:
         """Create a new planning interface."""
-        super().__init__("preplanned_end_effector_planner")
+        super().__init__("preplanned_end_effector_waypoint_planner")
 
         self.declare_parameter("trajectory_name", "")
         self.declare_parameter(

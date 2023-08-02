@@ -49,9 +49,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "waypoint_planner",
-            default_value="preplanned_end_effector_planner",
+            default_value="preplanned_end_effector_waypoint_planner",
             description="The waypoint planner to load.",
-            choices=["preplanned_end_effector_planner"],
+            choices=["preplanned_end_effector_waypoint_planner"],
         ),
     ]
 

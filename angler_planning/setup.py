@@ -55,7 +55,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "preplanned_end_effector_planner = waypoint_planners.preplanned_end_effector_planner.planner:main",  # noqa
+            "preplanned_end_effector_waypoint_planner = waypoint_planners.preplanned_end_effector_planner.planner:main",  # noqa
         ],
     },
 )
