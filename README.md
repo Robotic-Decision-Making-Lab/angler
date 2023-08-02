@@ -61,9 +61,9 @@ ros2 launch angler_bringup bluerov2_heavy_alpha.launch.py --show-args
 
 ## Getting help
 
-If you have questions regarding usage of the BlueROV2 driver or regarding
-contributing to this project, please ask a question on our
-[Discussions](https://github.com/evan-palmer/angler/discussions) board!
+If you have questions regarding usage of Angler or regarding contributing to
+this project, please ask a question on our [Discussions](https://github.com/evan-palmer/angler/discussions)
+board!
 
 ## License
 
