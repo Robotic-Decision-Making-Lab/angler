@@ -1,3 +1,0 @@
-preplanned_mission_planner:
-  ros__parameters:
-    mission_name: "straight"

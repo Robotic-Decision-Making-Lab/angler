@@ -6,10 +6,10 @@
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -23,7 +23,7 @@ from glob import glob
 
 from setuptools import find_packages, setup
 
-package_name = "angler_planning"
+package_name = "angler_control"
 
 setup(
     name=package_name,
@@ -33,29 +33,17 @@ setup(
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name), glob("launch/*.launch.py")),
-        (
-            os.path.join("share", package_name, "trajectories", "library"),
-            glob(
-                "waypoint_planners/preplanned_end_effector_planner/trajectories/library/*.json"  # noqa
-            ),
-        ),
-        (
-            os.path.join("share", package_name, "test", "resources"),
-            glob("test/resources/*"),
-        ),
     ],
-    install_requires=["setuptools", "scipy"],
+    install_requires=["setuptools"],
     zip_safe=True,
     maintainer="Evan Palmer",
     maintainer_email="evanp922@gmail.com",
-    description=(
-        "A collection of ROS 2 nodes responsible for trajectory and motion planning."
-    ),
+    description="A collection of whole-body controllers.",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "preplanned_end_effector_waypoint_planner = waypoint_planners.preplanned_end_effector_planner.planner:main",  # noqa
+            "tpik = inverse_kinematic_controllers.tpik.controller:main",
         ],
     },
 )

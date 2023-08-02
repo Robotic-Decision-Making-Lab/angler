@@ -31,10 +31,8 @@ RUN apt-get -q update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Qualisys Python SDK
-# This isn't available as a rosdep, so we need to install
-# it manually
-RUN python3 -m pip install qtm
+# Install the Python requirements that aren't available as rosdeps
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-build.txt
 
 # Install gstreamer
 RUN apt-get -q update \
@@ -178,7 +176,8 @@ RUN apt-get -q update \
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
     && colcon build \
     # Update /ros_entrypoint.sh to source the workspace
-    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh
+    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh \
+    && echo "source ${USER_WORKSPACE}/setup.sh" >> /home/$USERNAME/.bashrc
 
 ####################################################
 # develop: Setup the image for development purposes
@@ -191,6 +190,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR $ROS_UNDERLAY/..
 
 COPY . src/angler
+
+# Install debugging/linting Python packages
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-dev.txt
 
 RUN apt-get -q update \
     && apt-get -q -y upgrade \
@@ -209,26 +211,84 @@ RUN apt-get -q update \
     iputils-ping \
     net-tools \
     gdb \
+    nano \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install debugging/linting Python packages
-RUN python3 -m pip install \
-    pre-commit \
-    mypy \
-    isort \
-    flake8 \
-    black \
-    setuptools==58.2.0
-
 COPY .docker/entrypoints/dev.sh /
+
+# WARNING: This is a temporary solution for disabling the setuputils installation warning
+ENV PYTHONWARNINGS="ignore"
 
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
     # Expose the environment variables to the non-root user
-    && echo "if [ -f /ros_entrypoint.sh ]; then source /ros_entrypoint.sh; fi" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
+    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
 
-ENTRYPOINT [ "/ros_entrypoint.sh" ]
-CMD ["bash"]
+
+######################################################################################
+# develop-nvidia: Setup the image for development purposes with NVIDIA driver support
+######################################################################################
+FROM deps as develop-nvidia
+
+# Install NVIDIA software
+RUN apt-get update \
+    && apt-get install -y -qq --no-install-recommends \
+    libglvnd0 \
+    libgl1 \
+    libglx0 \
+    libegl1 \
+    libxext6 \
+    libx11-6
+
+# Env vars for the nvidia-container-runtime.
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
+ENV QT_X11_NO_MITSHM 1
+
+ENV GZ_VERSION=garden
+ENV ROS_UNDERLAY /root/ws_angler/install
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR $ROS_UNDERLAY/..
+
+COPY . src/angler
+
+# Install debugging/linting Python packages
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-dev.txt
+
+RUN apt-get -q update \
+    && apt-get -q -y upgrade \
+    && vcs import src < src/angler/angler.repos \
+    && rosdep update \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
+    && rm -rf src \
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install development tools
+RUN apt-get -q update \
+    && apt-get -q -y upgrade \
+    && apt-get -q install --no-install-recommends -y \
+    iputils-ping \
+    net-tools \
+    gdb \
+    nano \
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY .docker/entrypoints/dev.sh /
+
+# WARNING: This is a temporary solution for disabling the setuputils installation warning
+ENV PYTHONWARNINGS="ignore"
+
+ARG WORKSPACE
+RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
+    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
+    # Expose the environment variables to the non-root user
+    && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
+    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc

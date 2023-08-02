@@ -1,0 +1,34 @@
+- task: "joint_limit_set"
+  priority: 1
+  physical_upper: 1.571
+  physical_lower: 0.0
+  safety_upper: 1.475
+  safety_lower: 0.087
+  activation_threshold: 0.087
+  gain: 0.3
+  joint: 7  # axis d
+
+- task: "joint_limit_set"
+  priority: 1
+  physical_upper: 3.316
+  physical_lower: 1.571
+  safety_upper: 3.229
+  safety_lower: 1.745
+  activation_threshold: 0.087
+  gain: 0.3
+  joint: 6  # axis e
+
+- task: "end_effector_pose_eq"
+  priority: 2
+  gain: 0.3
+  x: 0.0
+  y: 0.0
+  z: -1.0
+  roll: 0.0
+  pitch: 0.0
+  yaw: 0.0
+
+- task: "vehicle_yaw_eq"
+  priority: 3
+  gain: 0.5
+  yaw: 0.0

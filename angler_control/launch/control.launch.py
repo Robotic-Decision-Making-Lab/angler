@@ -21,51 +21,57 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for the Angler planning interface.
+    """Generate a launch description for the Angler control interface.
 
     Returns:
-        LaunchDescription: The Angler planning launch description.
+        LaunchDescription: The Angler control launch description.
     """
     args = [
         DeclareLaunchArgument(
             "config_filepath",
             default_value=None,
-            description="The path to the configuration YAML file",
+            description="The path to the configuration YAML file.",
+        ),
+        DeclareLaunchArgument(
+            "hierarchy_file",
+            default_value=None,
+            description="The path to the TPIK task hierarchy.",
         ),
         DeclareLaunchArgument(
             "use_sim_time",
             default_value="false",
-            description="Use the simulated Gazebo clock.",
+            description=("Use the simulated Gazebo clock."),
         ),
         DeclareLaunchArgument(
-            "use_waypoint_planner",
-            default_value="true",
-            description="Load the selected waypoint planner.",
-        ),
-        DeclareLaunchArgument(
-            "waypoint_planner",
-            default_value="preplanned_end_effector_waypoint_planner",
-            description="The waypoint planner to load.",
-            choices=["preplanned_end_effector_waypoint_planner"],
+            "controller",
+            default_value="tpik",
+            description="The whole-body controller to load.",
+            choices=["tpik"],
         ),
     ]
 
+    controller = LaunchConfiguration("controller")
+
     nodes = [
+        # Create a separate node for TPIK because it requires the task hierarchy file
         Node(
-            package="angler_planning",
-            executable=LaunchConfiguration("waypoint_planner"),
-            name=LaunchConfiguration("waypoint_planner"),
+            package="angler_control",
+            executable=controller,
+            name=controller,
             output="screen",
             parameters=[
-                LaunchConfiguration("config_filepath"),
-                {"use_sim_time": LaunchConfiguration("use_sim_time")},
+                {
+                    "config_filepath": LaunchConfiguration("config_filepath"),
+                    "hierarchy_file": LaunchConfiguration("hierarchy_file"),
+                    "use_sim_time": LaunchConfiguration("use_sim_time"),
+                }
             ],
-            condition=IfCondition(LaunchConfiguration("use_waypoint_planner")),
+            condition=IfCondition(PythonExpression(["'", controller, "' == 'tpik'"])),
         ),
     ]
 
