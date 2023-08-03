@@ -468,13 +468,22 @@ class TPIK(Node):
                 # Get the necessary transforms
                 try:
                     tf_map_to_ee = self.tf_buffer.lookup_transform(
-                        self.inertial_frame, self.manipulator_ee_frame, Time()
+                        self.inertial_frame,
+                        self.manipulator_ee_frame,
+                        Time(),
+                        Duration(nanoseconds=10000000),  # 10 ms
                     )
                     tf_base_to_manipulator_base = self.tf_buffer.lookup_transform(
-                        self.base_frame, self.manipulator_base_frame, Time()
+                        self.base_frame,
+                        self.manipulator_base_frame,
+                        Time(),
+                        Duration(nanoseconds=10000000),  # 10 ms
                     )
                     tf_manipulator_base_to_ee = self.tf_buffer.lookup_transform(
-                        self.manipulator_base_frame, self.manipulator_ee_frame, Time()
+                        self.manipulator_base_frame,
+                        self.manipulator_ee_frame,
+                        Time(),
+                        Duration(nanoseconds=10000000),  # 10 ms
                     )
                 except TransformException as e:
                     self.get_logger().error(

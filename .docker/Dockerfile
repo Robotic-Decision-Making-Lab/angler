@@ -112,6 +112,10 @@ RUN sudo apt-get -q update \
     && vcs import src < src/angler.repos \
     && rosdep update \
     && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
+    # Install custom version of kinpy
+    && cd src/kinpy \
+    && python3 -m pip install . \
+    && cd ../.. \
     && rm -rf angler.repos \
     && sudo apt-get autoremove -y \
     && sudo apt-get clean -y \

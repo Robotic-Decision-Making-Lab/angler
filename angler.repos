@@ -9,3 +9,8 @@ repositories:
     type: git
     url: https://github.com/evan-palmer/blue.git
     version: main
+
+  kinpy:
+    type: git
+    url: https://github.com/evan-palmer/kinpy.git
+    version: master
