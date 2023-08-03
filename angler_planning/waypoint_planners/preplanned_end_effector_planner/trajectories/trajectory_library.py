@@ -49,7 +49,7 @@ def create_waypoint_msg(
 
     tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w = R.from_euler(
         "xyz", [rx, ry, rz]
-    ).as_quat(False)
+    ).as_quat()
 
     # Get the desired velocity
     vel = Twist()

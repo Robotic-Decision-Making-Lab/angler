@@ -305,7 +305,7 @@ class VehicleOrientationTask(EqualityConstraint):
                 desired_quat.y,
                 desired_quat.z,
                 desired_quat.w,
-            ) = dr.as_quat(False)
+            ) = dr.as_quat()
 
             task.desired_rot = desired_quat
 
@@ -426,9 +426,7 @@ class EndEffectorPoseTask(EqualityConstraint):
                 task.desired_value.rotation.w,  # type: ignore
             ) = R.from_euler(
                 "xyz", [roll, pitch, yaw]  # type: ignore
-            ).as_quat(
-                False
-            )
+            ).as_quat()
 
         return task
 

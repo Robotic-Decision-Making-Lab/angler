@@ -1,0 +1,4 @@
+services:
+  angler:
+    image: .
+    command: ros2 launch angler_bringup bluerov2_heavy_alpha.launch.py

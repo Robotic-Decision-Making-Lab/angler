@@ -311,7 +311,11 @@ def generate_launch_description() -> LaunchDescription:
         ),
         # We need to wait for the Gazebo spawner to finish, but
         # don't have access to that because it is called from blue
-        TimerAction(period=2.0, actions=[joint_state_broadcaster_spawner]),
+        TimerAction(
+            period=2.0,
+            actions=[joint_state_broadcaster_spawner],
+            condition=IfCondition(use_sim),
+        ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster_spawner, on_exit=[rviz]
@@ -323,14 +327,6 @@ def generate_launch_description() -> LaunchDescription:
                 target_action=joint_state_broadcaster_spawner,
                 on_exit=[alpha_controller_spawner],
             )
-        ),
-        Node(
-            package="robot_state_publisher",
-            executable="robot_state_publisher",
-            output="both",
-            parameters=[
-                {"use_sim_time": use_sim, "robot_description": robot_description}
-            ],
         ),
         Node(
             package="angler_utils",

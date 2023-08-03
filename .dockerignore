@@ -9,6 +9,7 @@
 !angler_mux
 !angler_utils
 !angler.repos
+!sim.repos
 !.docker/entrypoints
 !requirements-build.txt
 !requirements-dev.txt
