@@ -1,4 +1,23 @@
+# Experimental: for evan's use only
 services:
   angler:
-    image: .
-    command: ros2 launch angler_bringup bluerov2_heavy_alpha.launch.py
+    image: ghcr.io/evan-palmer/angler:rolling-robot
+    command: >
+      bash -c "colcon build
+      && source install/setup.bash
+      && ros2 launch angler_bringup bluerov2_heavy_alpha.launch.py use_fake_hardware:=false serial_port:=/dev/ttyUSB0"
+    volumes:
+      - type: bind
+        source: ./blue
+        target: /home/angler/ws_angler/src/blue
+
+      - type: bind
+        source: ./alpha
+        target: /home/angler/ws_angler/src/alpha
+
+      - type: bind
+        source: ./angler
+        target: /home/angler/ws_angler/src/angler
+
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
