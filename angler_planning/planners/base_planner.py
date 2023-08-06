@@ -24,11 +24,11 @@ from moveit_msgs.srv import GetMotionPlan
 from rclpy.node import Node
 
 
-class WaypointPlanner(Node, ABC):
-    """Base class for a waypoint planner."""
+class Planner(Node, ABC):
+    """Base class for a planner."""
 
     def __init__(self, node_name: str) -> None:
-        """Create a new waypoint planner.
+        """Create a new planner.
 
         Args:
             node_name: The name of the ROS node.

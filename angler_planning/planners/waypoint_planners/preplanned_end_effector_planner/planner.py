@@ -24,13 +24,13 @@ import rclpy
 from ament_index_python.packages import get_package_share_directory
 from moveit_msgs.msg import MoveItErrorCodes
 from moveit_msgs.srv import GetMotionPlan
-from waypoint_planners.base_planner import WaypointPlanner
-from waypoint_planners.preplanned_end_effector_planner.trajectories.trajectory_library import (  # noqa
+from planners.base_planner import Planner
+from planners.waypoint_planners.preplanned_end_effector_planner.trajectories.trajectory_library import (  # noqa
     TrajectoryLibrary as tl,
 )
 
 
-class PrePlannedEndEffectorPlanner(WaypointPlanner):
+class PrePlannedEndEffectorPlanner(Planner):
     """Planning interface for loading pre-planned end-effector trajectories."""
 
     def __init__(self) -> None:
