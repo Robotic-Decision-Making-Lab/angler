@@ -169,7 +169,7 @@ class TPIK(Node):
 
         # Services
         self.arm_controller_srv = self.create_service(
-            SetBool, "/angler/tpik/arm", self.arm_controller_cb
+            SetBool, "/angler/cmd/arm", self.arm_controller_cb
         )
 
         # Create a new callback group for the control loop timer

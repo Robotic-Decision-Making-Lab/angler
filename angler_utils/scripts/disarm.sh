@@ -6,4 +6,4 @@ ros2 service call /blue/cmd/enable_passthrough std_srvs/srv/SetBool data:\ false
 
 ros2 service call /blue/cmd/arm std_srvs/srv/SetBool data:\ false\
 
-ros2 service call /angler/tpik/arm std_srvs/srv/SetBool data:\ false\
+ros2 service call /angler/cmd/arm std_srvs/srv/SetBool data:\ false\
