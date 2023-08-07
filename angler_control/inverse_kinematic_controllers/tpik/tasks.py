@@ -20,7 +20,6 @@
 
 from typing import Any
 
-import inverse_kinematic_controllers.tpik.utils as tpik_utils
 import numpy as np
 from geometry_msgs.msg import Quaternion, Transform
 from inverse_kinematic_controllers.tpik.constraint import (
@@ -28,6 +27,35 @@ from inverse_kinematic_controllers.tpik.constraint import (
     SetConstraint,
 )
 from scipy.spatial.transform import Rotation as R
+
+import angler_kinematics.jacobian as jacobian  # type: ignore
+
+
+def calculate_quaternion_error(desired: Quaternion, actual: Quaternion) -> np.ndarray:
+    """Calculate the error between two quaternions.
+
+    Args:
+        desired: The desired orientation.
+        actual: The actual orientation.
+
+    Returns:
+        The angle between the two quaternions as a quaternion.
+    """
+
+    def quat_to_array(quat: Quaternion):
+        return np.array([quat.x, quat.y, quat.z, quat.w])
+
+    quat_d = quat_to_array(desired)
+    quat_a = quat_to_array(actual)
+
+    error_eps = (
+        quat_a[3] * quat_d[:3]
+        - quat_d[3] * quat_a[:3]
+        + np.cross(quat_a[:3], quat_d[:3])
+    )
+    error_lambda = quat_d[3] * quat_a[3] + quat_d[:3].T @ quat_a[:3]
+
+    return np.hstack((error_eps, error_lambda))
 
 
 class VehicleRollPitchTask(EqualityConstraint):
@@ -129,12 +157,8 @@ class VehicleRollPitchTask(EqualityConstraint):
         Returns:
             The Jacobian for a task which controls the vehicle roll and pitch.
         """
-        J_ko = tpik_utils.calculate_vehicle_angular_velocity_jacobian(
-            self.rot_map_to_base
-        )
-
         J = np.zeros((2, 6 + self.n_manipulator_joints))
-        J[:, 3:6] = np.array([[1, 0, 0], [0, 1, 0]]) @ np.linalg.pinv(J_ko)
+        J[:, :6] = jacobian.calculate_vehicle_roll_pitch_jacobian(self.rot_map_to_base)
 
         return J
 
@@ -239,12 +263,8 @@ class VehicleYawTask(EqualityConstraint):
         Returns:
             The Jacobian for a task which controls the vehicle yaw.
         """
-        J_ko = tpik_utils.calculate_vehicle_angular_velocity_jacobian(
-            self.rot_map_to_base
-        )
-
         J = np.zeros((1, 6 + self.n_manipulator_joints))
-        J[:, 3:6] = np.array([0, 0, 1]) @ np.linalg.inv(J_ko)
+        J[:, :6] = jacobian.calculate_vehicle_yaw_jacobian(self.rot_map_to_base)
 
         return J
 
@@ -256,106 +276,6 @@ class VehicleYawTask(EqualityConstraint):
             The reference signal.
         """
         return self.desired_value - self.current_value  # type: ignore
-
-
-class VehicleOrientationTask(EqualityConstraint):
-    """Control the vehicle orientation."""
-
-    name = "vehicle_orientation_eq"
-
-    def __init__(self, gain: float, priority: float) -> None:
-        """Create a new vehicle orientation task.
-
-        Args:
-            gain: The task gain.
-            priority: The task priority.
-        """
-        super().__init__(gain, priority)
-
-        self.current_rot = Quaternion()
-        self.desired_rot = Quaternion()
-        self.rot_base_to_map = Quaternion()
-        self.n_manipulator_joints = 0
-
-    @staticmethod
-    def create_task_from_params(
-        gain: float,
-        priority: float,
-        roll: float | None = None,
-        pitch: float | None = None,
-        yaw: float | None = None,
-    ) -> Any:
-        """Create a new vehicle orientation task.
-
-        Args:
-            gain: The task gain.
-            priority: The task priority.
-            roll: The desired vehicle roll, if known beforehand. Defaults to
-                None.
-            pitch: The desired vehicle pitch, if known beforehand. Defaults to None.
-            yaw: The desired vehicle yaw, if known beforehand. Defaults to None.
-        """
-        task = VehicleOrientationTask(gain, priority)
-
-        if None not in [roll, pitch, yaw]:
-            dr = R.from_euler("xyz", [roll, pitch, yaw])  # type: ignore
-            desired_quat = Quaternion()
-            (
-                desired_quat.x,
-                desired_quat.y,
-                desired_quat.z,
-                desired_quat.w,
-            ) = dr.as_quat()
-
-            task.desired_rot = desired_quat
-
-        return task
-
-    def update(
-        self,
-        current_rot: Quaternion,
-        desired_rot: Quaternion | None = None,
-        n_manipulator_joints: int | None = None,
-    ) -> None:
-        """Update the vehicle orientation context.
-
-        Args:
-            current_rot: The current vehicle orientation.
-            desired_rot: The desired vehicle orientation. Defaults to None.
-            n_manipulator_joints: The total number of manipulator joints. Defaults to
-                None.
-        """
-        self.rot_base_to_map = current_rot
-        self.current_rot = current_rot
-
-        if desired_rot is not None:
-            self.desired_rot = desired_rot
-
-        if n_manipulator_joints is not None:
-            n_manipulator_joints = n_manipulator_joints
-
-    @property
-    def jacobian(self) -> np.ndarray:
-        """Calculate the vehicle orientation Jacobian.
-
-        Returns:
-            The vehicle orientation Jacobian.
-        """
-        J = np.zeros((3, 6 + self.n_manipulator_joints))
-        J[:, 3:6] = tpik_utils.quaternion_to_rotation(self.rot_base_to_map).as_matrix()
-
-        return J
-
-    @property
-    def error(self) -> np.ndarray:
-        """Calculate the reference signal for the vehicle orientation.
-
-        Returns:
-            The reference signal needed to move the vehicle to the desired orientation.
-        """
-        return tpik_utils.calculate_quaternion_error(
-            self.desired_rot, self.current_rot
-        )[:3].reshape((3, 1))
 
 
 class EndEffectorPoseTask(EqualityConstraint):
@@ -475,53 +395,14 @@ class EndEffectorPoseTask(EqualityConstraint):
         Returns:
             The UVMS Jacobian.
         """
-        # Get the transformation translations
-        # denoted as r_{from frame}{to frame}_{with respect to x frame}
-        r_B0_B = tpik_utils.point_to_array(self.tf_base_to_manipulator_base.translation)
-        eta_0ee_0 = tpik_utils.point_to_array(
-            self.tf_manipulator_base_to_ee.translation
+        return jacobian.calculate_uvms_jacobian(
+            self.tf_base_to_manipulator_base,
+            self.tf_manipulator_base_to_ee,
+            self.tf_map_to_base,
+            len(self.joint_angles),
+            self.serial_chain,
+            self.joint_angles,
         )
-
-        # Get the transformation rotations
-        # denoted as R_{from frame}_{to frame}
-        R_0_B = np.linalg.inv(
-            tpik_utils.quaternion_to_rotation(
-                self.tf_base_to_manipulator_base.rotation
-            ).as_matrix()
-        )
-        R_B_I = np.linalg.inv(
-            tpik_utils.quaternion_to_rotation(self.tf_map_to_base.rotation).as_matrix()
-        )
-        R_0_I = R_B_I @ R_0_B
-
-        r_B0_I = R_B_I @ r_B0_B
-        eta_0ee_I = R_0_I @ eta_0ee_0
-
-        def get_skew_matrix(x: np.ndarray) -> np.ndarray:
-            # Expect a 3x1 vector
-            return np.array(
-                [
-                    [0, -x[2][0], x[1][0]],  # type: ignore
-                    [x[2][0], 0, -x[0][0]],
-                    [-x[1][0], x[0][0], 0],
-                ],
-            )
-
-        J = np.zeros((6, 6 + len(self.joint_angles)))
-        J_man = tpik_utils.calculate_manipulator_jacobian(
-            self.serial_chain, self.joint_angles
-        )
-
-        # Position Jacobian
-        J[:3, :3] = R_B_I
-        J[:3, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
-        J[:3, 6:] = R_0_I @ J_man[:3]
-
-        # Orientation Jacobian
-        J[3:6, 3:6] = R_B_I
-        J[3:6, 6:] = R_0_I @ J_man[3:]
-
-        return J
 
     @property
     def error(self) -> np.ndarray:
@@ -538,7 +419,7 @@ class EndEffectorPoseTask(EqualityConstraint):
                 self.desired_value.translation.z - self.current_value.translation.z,  # type: ignore # noqa
             ]
         ).reshape((3, 1))
-        ori_error = tpik_utils.calculate_quaternion_error(
+        ori_error = calculate_quaternion_error(
             self.desired_value.rotation, self.current_value.rotation  # type: ignore
         )[:3].reshape((3, 1))
 
@@ -739,7 +620,9 @@ class ManipulatorJointConfigurationTask(EqualityConstraint):
             The joint configuration Jacobian.
         """
         J = np.zeros((self.n_manipulator_joints, 6 + self.n_manipulator_joints))
-        J[0:, 6:] = np.eye(self.n_manipulator_joints)
+        J[0:, 6:] = jacobian.calculate_joint_configuration_jacobian(
+            self.n_manipulator_joints
+        )
 
         return J
 
@@ -760,7 +643,6 @@ task_library = {
         EndEffectorPoseTask,
         ManipulatorJointLimitTask,
         ManipulatorJointConfigurationTask,
-        VehicleOrientationTask,
         VehicleRollPitchTask,
         VehicleYawTask,
     ]

@@ -1,3 +1,5 @@
+# Many of these dependencies should go away as they have bugs
+# resolved and release Gazebo Garden dependencies.
 repositories:
 
   ros_gz:

@@ -31,7 +31,6 @@ from inverse_kinematic_controllers.tpik.tasks import (
     EndEffectorPoseTask,
     ManipulatorJointConfigurationTask,
     ManipulatorJointLimitTask,
-    VehicleOrientationTask,
     VehicleRollPitchTask,
     VehicleYawTask,
 )
@@ -461,8 +460,6 @@ class TPIK(Node):
             elif isinstance(task, ManipulatorJointConfigurationTask):
                 task.update(joint_angles.reshape((len(joint_angles), 1)))
             elif isinstance(task, VehicleYawTask):
-                task.update(vehicle_pose.rotation)
-            elif isinstance(task, VehicleOrientationTask):
                 task.update(vehicle_pose.rotation)
             elif isinstance(task, EndEffectorPoseTask):
                 # Get the necessary transforms
