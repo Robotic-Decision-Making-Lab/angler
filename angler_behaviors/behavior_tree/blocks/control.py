@@ -18,18 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-ANGLER_NAMESPACE = "/angler"
 
-# Topic names
-TOPIC_ARM = f"{ANGLER_NAMESPACE}/arm"
+def make_move_to_end_effector_pose_behavior():
+    ...
 
-# Blackboard keys
-BB_ARMED = "armed"
-BB_PASSTHROUGH_REQUEST_RESPONSE = "passthrough_request_response"
-BB_BLUE_ARMING_REQUEST_RESPONSE = "blue_arming_request_response"
-BB_ANGLER_ARMING_REQUEST_RESPONSE = "angler_arming_request_response"
 
-# Service names
-SRV_ENABLE_PASSTHROUGH = "/blue/cmd/enable_passthrough"
-SRV_ARM_BLUE = "/blue/cmd/arm"
-SRV_ARM_ANGLER = "/angler/cmd/arm"
+def make_execute_trajectory_behavior():
+    ...
