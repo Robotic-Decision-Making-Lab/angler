@@ -71,7 +71,9 @@ def generate_launch_description() -> LaunchDescription:
                     "use_sim_time": LaunchConfiguration("use_sim_time"),
                 }
             ],
-            condition=IfCondition(PythonExpression(["'", controller, "' == 'tpik'"])),
+            condition=IfCondition(
+                PythonExpression(["'", controller, "' == 'tpik_controller'"])
+            ),
         ),
     ]
 
