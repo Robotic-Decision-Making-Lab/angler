@@ -211,9 +211,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "whole_body_controller",
-            default_value="tpik",
+            default_value="tpik_controller",
             description="The whole-body controller to load.",
-            choices=["tpik"],
+            choices=["tpik_controller"],
         ),
     ]
 
@@ -252,7 +252,7 @@ def generate_launch_description() -> LaunchDescription:
         namespace=namespace,
         parameters=[
             controllers_file,
-            {"use_sim_time": use_sim, "robot_description": robot_description},
+            {"use_sim_time": use_sim},
         ],
         condition=UnlessCondition(use_sim),
     )

@@ -24,12 +24,12 @@ from typing import Any
 
 import numpy as np
 import yaml  # type: ignore
-from inverse_kinematic_controllers.tpik.constraint import (
+from controllers.tpik_controller.constraints import (
     Constraint,
     EqualityConstraint,
     SetConstraint,
 )
-from inverse_kinematic_controllers.tpik.tasks import task_library
+from controllers.tpik_controller.tasks import task_library
 
 
 class TaskHierarchy:

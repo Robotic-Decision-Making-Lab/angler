@@ -21,27 +21,22 @@
 import kinpy
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Transform, Twist
-from inverse_kinematic_controllers.tpik.constraint import (
-    EqualityConstraint,
-    SetConstraint,
-)
-from inverse_kinematic_controllers.tpik.hierarchy import TaskHierarchy
-from inverse_kinematic_controllers.tpik.tasks import (
+from controllers.controller import BaseController
+from controllers.tpik_controller.constraints import EqualityConstraint, SetConstraint
+from controllers.tpik_controller.hierarchy import TaskHierarchy
+from controllers.tpik_controller.tasks import (
     EndEffectorPoseTask,
     ManipulatorJointConfigurationTask,
     ManipulatorJointLimitTask,
     VehicleRollPitchTask,
     VehicleYawTask,
 )
+from geometry_msgs.msg import Transform, Twist
 from moveit_msgs.msg import RobotState, RobotTrajectory
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from std_msgs.msg import String
-from std_srvs.srv import SetBool
 from tf2_ros import TransformException  # type: ignore
 from tf2_ros import Time
 from tf2_ros.buffer import Buffer
@@ -82,33 +77,28 @@ def construct_augmented_jacobian(jacobians: list[np.ndarray]) -> np.ndarray:
     return np.vstack(tuple(jacobians))
 
 
-class TPIK(Node):
-    """Task-priority inverse kinematic (TPIK) controller.
+class TpikController(BaseController):
+    """Set-based task-priority inverse kinematic (TPIK) controller.
 
     The TPIK controller is responsible for calculating kinematically feasible system
     velocities subject to equality and set-based constraints.
+
+    Only high-priority set-based tasks have been implemented at the moment.
     """
 
     def __init__(self) -> None:
         """Create a new TPIK node."""
-        super().__init__("tpik")
+        super().__init__("tpik_controller")
 
         self.declare_parameter("hierarchy_file", "")
         self.declare_parameter("inertial_frame", "map")
         self.declare_parameter("base_frame", "base_link")
         self.declare_parameter("manipulator_base_link", "alpha_base_link")
         self.declare_parameter("manipulator_end_link", "alpha_standard_jaws_tool")
-        self.declare_parameter("control_rate", 50.0)
-
-        # Keep track of the robot state for the tasks
-        self.state = RobotState()
 
         # Don't run the controller until everything has been properly initialized
         self._description_received = False
         self._init_state_received = False
-
-        # Require a service call to arm the controller
-        self._armed = False
 
         # Keep track of the frames
         self.inertial_frame = (
@@ -137,17 +127,6 @@ class TPIK(Node):
         self.tf_buffer = Buffer(cache_time=Duration(seconds=1))
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        self.manipulator_base_link_frame = (
-            self.get_parameter("manipulator_end_link")
-            .get_parameter_value()
-            .string_value
-        )
-        self.manipulator_ee_frame = (
-            self.get_parameter("manipulator_end_link")
-            .get_parameter_value()
-            .string_value
-        )
-
         # Subscribers
         self.robot_description_sub = self.create_subscription(
             String,
@@ -155,72 +134,22 @@ class TPIK(Node):
             self.read_robot_description_cb,
             QoSProfile(depth=5, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL),
         )
-        self.robot_state_sub = self.create_subscription(
-            RobotState,
-            "/angler/state",
-            self.robot_state_cb,
-            qos_profile=qos_profile_sensor_data,
-        )
 
         # Publishers
         self.robot_trajectory_pub = self.create_publisher(
             RobotTrajectory, "/angler/robot_trajectory", 1
         )
 
-        # Services
-        self.arm_controller_srv = self.create_service(
-            SetBool, "/angler/cmd/arm", self.arm_controller_cb
-        )
+    def on_arm(self) -> bool:
+        """Make sure that the system has been initialized before enabling arming.
 
-        # Create a new callback group for the control loop timer
-        self.timer_cb_group = MutuallyExclusiveCallbackGroup()
-
-        # Create a timer to run the TPIK controller
-        self.control_timer = self.create_timer(
-            1 / self.get_parameter("control_rate").get_parameter_value().double_value,
-            self.update,
-            self.timer_cb_group,
-        )
-
-    @property
-    def initialized(self) -> bool:
-        """Check whether or not the controller has been fully initialized.
+        The controller is considered initialized when the robot description and initial
+        state have been received.
 
         Returns:
-            Whether or not the controller has been initialized.
+            Whether or not the system has been fully initialized.
         """
         return self._description_received and self._init_state_received
-
-    def arm_controller_cb(
-        self, request: SetBool.Request, response: SetBool.Response
-    ) -> SetBool.Response:
-        """Arm/disarm the TPIK controller.
-
-        Args:
-            request: The arm/disarm request.
-            response: The request result.
-
-        Returns:
-            The request result.
-        """
-        if request.data:
-            if self.initialized:
-                self._armed = True
-                response.success = self._armed
-                response.message = "Successfully armed the TPIK controller"
-            else:
-                self._armed = False
-                response.success = self._armed
-                response.message = (
-                    "Failed to arm the TPIK controller: controller has not"
-                    " yet been initialized"
-                )
-        else:
-            self._armed = False
-            response.success = True
-            response.message = "Successfully disarmed the TPIK controller"
-
-        return response
 
     def read_robot_description_cb(self, robot_description: String) -> None:
         """Create a kinpy serial chain from the robot description.
@@ -257,7 +186,6 @@ class TPIK(Node):
                 task.serial_chain = self.serial_chain  # type: ignore
 
         self._description_received = True
-
         self.get_logger().debug("Robot description received!")
 
     def calculate_system_velocity(
@@ -317,13 +245,8 @@ class TPIK(Node):
             hierarchy, system_velocities, jacobians, nullspace
         )
 
-    def update(self) -> None:
-        """Calculate and send the desired system velocities."""
-        if not self._armed:
-            return
-
-        self.update_context()
-
+    def on_update(self) -> None:
+        """Calculate the desired system velocities using set-based TPIK."""
         hierarchies = self.hierarchy.hierarchies
 
         # Check whether or not the hierarchies have any set tasks
@@ -424,6 +347,7 @@ class TPIK(Node):
 
         # Create the full system command
         trajectory.multi_dof_joint_trajectory.joint_names = ["vehicle"]
+        # TODO(evan): don't hard-code this
         trajectory.joint_trajectory.joint_names = [
             "alpha_axis_a"
         ] + self.serial_chain.get_joint_parameter_names()[::-1]
@@ -432,23 +356,21 @@ class TPIK(Node):
 
         return trajectory
 
-    def robot_state_cb(self, state: RobotState) -> None:
-        """Update the current robot state.
+    def on_robot_state_update(self, state: RobotState) -> None:
+        """Update the current task contexts.
 
         Args:
-            state: The current robot state.
+            state: The current state of the robot.
         """
-        self.state = state
-        self._init_state_received = True
-        self.update_context()
+        # Indicate that the initial robot state has been received
+        if not self._init_state_received:
+            self._init_state_received = True
 
-    def update_context(self) -> None:
-        """Update the current state variables for each task."""
         # Get some of the more commonly used state variables
         # The joint state includes the linear jaws joint angle. We exclude this,
         # because we aren't controlling it within this specific framework.
-        joint_angles = np.array(self.state.joint_state.position[1:][::-1])
-        vehicle_pose: Transform = self.state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
+        joint_angles = np.array(state.joint_state.position[1:][::-1])
+        vehicle_pose: Transform = state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
 
         for task in self.hierarchy.tasks:
             if isinstance(task, ManipulatorJointLimitTask):
@@ -501,7 +423,7 @@ def main(args: list[str] | None = None):
     """Run the TPIK controller."""
     rclpy.init(args=args)
 
-    node = TPIK()
+    node = TpikController()
     executor = MultiThreadedExecutor()
     rclpy.spin(node, executor)
 

@@ -49,9 +49,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "controller",
-            default_value="tpik",
+            default_value="tpik_controller",
             description="The whole-body controller to load.",
-            choices=["tpik"],
+            choices=["tpik_controller"],
         ),
     ]
 

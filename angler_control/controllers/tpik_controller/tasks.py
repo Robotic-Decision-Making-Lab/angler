@@ -21,11 +21,8 @@
 from typing import Any
 
 import numpy as np
+from controllers.tpik_controller.constraints import EqualityConstraint, SetConstraint
 from geometry_msgs.msg import Quaternion, Transform
-from inverse_kinematic_controllers.tpik.constraint import (
-    EqualityConstraint,
-    SetConstraint,
-)
 from scipy.spatial.transform import Rotation as R
 
 import angler_kinematics.jacobian as jacobian  # type: ignore
