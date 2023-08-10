@@ -21,7 +21,7 @@
 from abc import ABC, abstractmethod
 
 from moveit_msgs.msg import RobotState
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from std_srvs.srv import SetBool
@@ -61,8 +61,9 @@ class BaseController(ABC, Node):
         )
 
         # Create a new callback group for the control loop timer
-        self.timer_cb_group = MutuallyExclusiveCallbackGroup()
-        self.create_timer(self.dt, self._update)
+        # Don't start it automatically though.
+        self.timer_cb_group = ReentrantCallbackGroup()
+        self.control_loop_timer = self.create_timer(self.dt, self._update)
 
     def on_robot_state_update(self, state: RobotState) -> None:
         """Execute this function on robot state update.
@@ -70,7 +71,7 @@ class BaseController(ABC, Node):
         Args:
             state: The most recent robot state update.
         """
-        # Don't do anything with the state
+        # Don't do anything with the state by default
         ...
 
     def _robot_state_cb(self, state: RobotState) -> None:

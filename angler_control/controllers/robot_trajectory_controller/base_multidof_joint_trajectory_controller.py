@@ -69,8 +69,8 @@ class Trajectory:
         self.time_before_trajectory = current_time
         self.state_before_trajectory = current_point
 
+    @staticmethod
     def merge_trajectory_with_current_state(
-        self,
         current_time: Time,
         state: MultiDOFJointTrajectoryPoint,
         trajectory: MultiDOFJointTrajectory,
@@ -88,7 +88,7 @@ class Trajectory:
         )
         self.sampled_already = False
 
-    def value(
+    def sample(
         self,
         t: Time,
         start_point: MultiDOFJointTrajectoryPoint,
@@ -105,7 +105,13 @@ class Trajectory:
         if t < self.time_before_trajectory:
             return None
 
-        # TODO(evan): finish this: https://github.com/ros-controls/ros2_controllers/blob/83e415c0f00512398df3c3a508f738fc76a7ecda/joint_trajectory_controller/src/trajectory.cpp#L86
+        output_state = MultiDOFJointTrajectoryPoint()
+        first_point_in_msg = self.trajectory.points[0]
+        first_point_timestamp = self.start_time + first_point_in_msg.time_from_start
+
+        if t < first_point_timestamp:
+            if True:
+                ...
 
     def interpolate(self):
         ...
