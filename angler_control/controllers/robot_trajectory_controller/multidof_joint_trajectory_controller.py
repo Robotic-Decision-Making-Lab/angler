@@ -23,6 +23,7 @@ from abc import abstractmethod
 import rclpy
 from control_msgs.action import FollowJointTrajectory
 from controllers.controller import BaseController
+from controllers.robot_trajectory_controller.trajectory import MultiDOFTrajectory
 from rclpy.action import ActionServer, GoalResponse
 from rclpy.timer import Timer
 
@@ -38,11 +39,16 @@ class MultiDOFJointTrajectoryController(BaseController):
         """
         super().__init__(controller_name)
 
+        self.declare_parameter("goal_tolerance", 0.2)
+
         self.goal_handle: FollowJointTrajectory.Goal | None = None
         self.goal_result: FollowJointTrajectory.Result | None = None
         self._preempted = False
         self._running = False
         self._timer: Timer | None = None
+        self.goal_tolerance = (
+            self.get_parameter("goal_tolerance").get_parameter_value().double_value
+        )
 
         self.execute_trajectory_client = ActionServer(
             self,
@@ -55,6 +61,14 @@ class MultiDOFJointTrajectoryController(BaseController):
     def handle_action_request_cb(
         self, goal: FollowJointTrajectory.Goal
     ) -> GoalResponse:
+        """Accept or reject the action request.
+
+        Args:
+            goal: The action goal.
+
+        Returns:
+            Whether or not the goal has been accepted.
+        """
         if not self.armed:
             return GoalResponse.REJECT
 
@@ -66,12 +80,26 @@ class MultiDOFJointTrajectoryController(BaseController):
 
     @abstractmethod
     def on_update(self) -> None:
+        """Return if no goal has been received."""
         if self.goal_handle is None:
             return
+
+        # TODO(evan): execute the trajectory
 
     async def execute_trajectory_cb(
         self, goal: FollowJointTrajectory.Goal
     ) -> FollowJointTrajectory.Result:
+        """Execute a trajectory.
+
+        Args:
+            goal: The goal with the desired trajectory to execute.
+
+        Raises:
+            RuntimeError: Unhandled state.
+
+        Returns:
+            The trajectory execution result.
+        """
         # Wait for any previous goals to be cleaned up
         timer = self.create_rate(self.dt)
         while self._running and rclpy.ok():
@@ -85,6 +113,11 @@ class MultiDOFJointTrajectoryController(BaseController):
         self._running = True
         self.goal_handle = goal
         self.goal_result = None
+        self.trajectory = MultiDOFTrajectory(
+            goal.multi_dof_trajectory,
+            self.state.multi_dof_joint_state,
+            self.get_clock().now(),
+        )
 
         # Spin until we get a response from the controller or the goal is preempted/
         # canceled
@@ -112,6 +145,11 @@ class MultiDOFJointTrajectoryController(BaseController):
         )
 
     def preempt_current_goal(self) -> FollowJointTrajectory.Result:
+        """Preempt the current goal with a new goal.
+
+        Returns:
+            The result of the goal that has been preempted.
+        """
         result = FollowJointTrajectory.Result()
         result.error_code = FollowJointTrajectory.Result.INVALID_GOAL
         result.error_string = (
@@ -121,6 +159,11 @@ class MultiDOFJointTrajectoryController(BaseController):
         return result
 
     def cancel_current_goal(self) -> FollowJointTrajectory.Result:
+        """Cancel the current goal.
+
+        Returns:
+            The result of the goal that has been cancelled.
+        """
         result = FollowJointTrajectory.Result()
         result.error_code = FollowJointTrajectory.Result.INVALID_GOAL
         result.error_string = "The current action was cancelled by a client!"
