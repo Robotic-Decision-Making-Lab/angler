@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - 18-feature-implement-trajectory-planner
   pull_request:
     paths:
       - .docker/**
