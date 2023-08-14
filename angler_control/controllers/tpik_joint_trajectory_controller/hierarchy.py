@@ -24,12 +24,12 @@ from typing import Any
 
 import numpy as np
 import yaml  # type: ignore
-from controllers.tpik_controller.constraints import (
+from controllers.tpik_joint_trajectory_controller.constraints import (
     Constraint,
     EqualityConstraint,
     SetConstraint,
 )
-from controllers.tpik_controller.tasks import task_library
+from controllers.tpik_joint_trajectory_controller.tasks import task_library
 
 
 class TaskHierarchy:

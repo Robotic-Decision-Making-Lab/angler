@@ -18,12 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import controllers.robot_trajectory_controller.utils as controller_utils
 import numpy as np
 from geometry_msgs.msg import Transform, Twist
 from rclpy.time import Duration, Time
 from scipy.interpolate import CubicHermiteSpline, interp1d
 from scipy.spatial.transform import Rotation as R
-from sensor_msgs.msg import MultiDOFJointState
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
 
 
@@ -38,7 +38,7 @@ class MultiDOFTrajectory:
     def __init__(
         self,
         trajectory: MultiDOFJointTrajectory,
-        current_state: MultiDOFJointState,
+        current_state: MultiDOFJointTrajectoryPoint,
         current_time: Time,
     ) -> None:
         """Create a new MultiDOFJointTrajectory interface.
@@ -50,14 +50,7 @@ class MultiDOFTrajectory:
             current_time: The current ROS timestamp.
         """
         self.trajectory = trajectory
-
-        # Convert the current state into a MultiDOFJointTrajectoryPoint for consistency
-        # Note that there is no velocity component in the MultiDOFJointState message
-        self.starting_state = MultiDOFJointTrajectoryPoint()
-
-        self.starting_state.transforms = current_state.transforms
-        self.starting_state.velocities = current_state.twist
-
+        self.starting_state = current_state
         self.starting_time = current_time
 
     def sample(self, t: Time) -> MultiDOFJointTrajectoryPoint | None:
@@ -77,7 +70,9 @@ class MultiDOFTrajectory:
             return None
 
         first_point = self.trajectory.points[0]  # type: ignore
-        first_point_timestamp = first_point.time_from_start + self.starting_time
+        first_point_timestamp = controller_utils.add_ros_time_duration_msg(
+            self.starting_time, first_point.time_from_start
+        )
 
         if t < first_point_timestamp:
             return self.interpolate(
@@ -92,14 +87,19 @@ class MultiDOFTrajectory:
             point = self.trajectory.points[i]  # type: ignore
             next_point = self.trajectory.points[i + 1]  # type: ignore
 
-            t0 = self.starting_time + point.time_from_start
-            t1 = self.starting_time + next_point.time_from_start
+            t0 = controller_utils.add_ros_time_duration_msg(
+                self.starting_time, point.time_from_start
+            )
+            t1 = controller_utils.add_ros_time_duration_msg(
+                self.starting_time, next_point.time_from_start
+            )
 
             if t0 <= t < t1:
                 return self.interpolate(point, next_point, t0, t1, t)
 
-        # Return None by default because we didn't find a point in the trajectory
-        return None
+        # We are sampling past the trajectory now; return the last point in the
+        # trajectory
+        return self.trajectory.points[-1]  # type: ignore
 
     def interpolate(
         self,
@@ -115,6 +115,9 @@ class MultiDOFTrajectory:
         velocities. Interpolation between points with accelerations is not yet
         supported.
 
+        For position-only interfaces, linear interpolation is used. For position +
+        velocity interfaces, cubic Hermite spline interpolation is used.
+
         Args:
             start_point: The segment starting point.
             end_point: The segment end point.
@@ -123,7 +126,7 @@ class MultiDOFTrajectory:
             sample_time: The timestamp at which to sample.
 
         Returns:
-            _description_
+            The identified point at the provided sample time.
         """
         duration_from_start: Duration = sample_time - start_time
         duration_between_points: Duration = end_time - start_time
@@ -141,30 +144,6 @@ class MultiDOFTrajectory:
         result = MultiDOFJointTrajectoryPoint()
         result.time_from_start.nanosec = sample_time
 
-        # Create a few helper functions to clean things up
-        def convert_tf_to_array(tf: Transform) -> np.ndarray:
-            return np.array(
-                [
-                    tf.translation.x,
-                    tf.translation.y,
-                    tf.translation.z,
-                    *R.from_quat(
-                        [tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w]
-                    ).as_euler("xyz"),
-                ]
-            )
-
-        def convert_twist_to_array(twist: Twist) -> np.ndarray:
-            return np.array(
-                [
-                    twist.linear.x,
-                    twist.linear.y,
-                    twist.linear.z,
-                    twist.angular.x,
-                    twist.angular.z,
-                ]
-            )
-
         if not has_velocity:
             # Perform linear interpolation between points
             for i in range(len(start_point.transforms)):
@@ -173,8 +152,11 @@ class MultiDOFTrajectory:
                 end_tf: Transform = end_point.transforms[i]  # type: ignore
 
                 tfs = np.array(
-                    [convert_tf_to_array(start_tf), convert_tf_to_array(end_tf)]
-                )
+                    [
+                        controller_utils.convert_tf_to_array(start_tf),
+                        controller_utils.convert_tf_to_array(end_tf),
+                    ]
+                ).T
                 t = np.array([start_time.nanoseconds, end_time.nanoseconds])
 
                 # Perform linear interpolation
@@ -209,10 +191,16 @@ class MultiDOFTrajectory:
                 end_vel = end_point.velocities[i]  # type: ignore
 
                 tfs = np.array(
-                    [convert_tf_to_array(start_tf), convert_tf_to_array(end_tf)]
+                    [
+                        controller_utils.convert_tf_to_array(start_tf),
+                        controller_utils.convert_tf_to_array(end_tf),
+                    ]
                 )
                 vels = np.array(
-                    [convert_twist_to_array(start_vel), convert_twist_to_array(end_vel)]
+                    [
+                        controller_utils.convert_twist_to_array(start_vel),
+                        controller_utils.convert_twist_to_array(end_vel),
+                    ]
                 )
                 t = np.array([start_time.nanoseconds, end_time.nanoseconds])
 

@@ -140,14 +140,14 @@ class BaseController(ABC, Node):
             response.message = (
                 "Failed to "
                 + ("arm" if request.data else "disarm")
-                + "the Angler controller!"
+                + " the Angler controller!"
             )
         else:
             response.success = True
             response.message = (
                 "Successfully "
                 + ("armed" if self.armed else "disarmed")
-                + "the Angler controller!"
+                + " the Angler controller!"
             )
 
         return response

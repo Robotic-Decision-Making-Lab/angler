@@ -37,14 +37,19 @@ class PrePlannedEndEffectorPlanner(Planner):
         """Create a new planning interface."""
         super().__init__("preplanned_end_effector_waypoint_planner")
 
-        self.declare_parameter("trajectory_name", "")
-        self.declare_parameter(
-            "library_path",
-            os.path.join(
-                get_package_share_directory("angler_planning"),
-                "trajectories",
-                "library",
-            ),
+        self.declare_parameters(
+            namespace="",
+            parameters=[  # type: ignore
+                ("trajectory_name", ""),
+                (
+                    "library_path",
+                    os.path.join(
+                        get_package_share_directory("angler_planning"),
+                        "trajectories",
+                        "library",
+                    ),
+                ),
+            ],
         )
 
         trajectory_name = (

@@ -21,10 +21,15 @@
 import kinpy
 import numpy as np
 import rclpy
-from controllers.controller import BaseController
-from controllers.tpik_controller.constraints import EqualityConstraint, SetConstraint
-from controllers.tpik_controller.hierarchy import TaskHierarchy
-from controllers.tpik_controller.tasks import (
+from controllers.robot_trajectory_controller.base_multidof_joint_trajectory_controller import (  # noqa
+    BaseMultiDOFJointTrajectoryController,
+)
+from controllers.tpik_joint_trajectory_controller.constraints import (
+    EqualityConstraint,
+    SetConstraint,
+)
+from controllers.tpik_joint_trajectory_controller.hierarchy import TaskHierarchy
+from controllers.tpik_joint_trajectory_controller.tasks import (
     EndEffectorPoseTask,
     ManipulatorJointConfigurationTask,
     ManipulatorJointLimitTask,
@@ -77,7 +82,7 @@ def construct_augmented_jacobian(jacobians: list[np.ndarray]) -> np.ndarray:
     return np.vstack(tuple(jacobians))
 
 
-class TpikController(BaseController):
+class TpikController(BaseMultiDOFJointTrajectoryController):
     """Set-based task-priority inverse kinematic (TPIK) controller.
 
     The TPIK controller is responsible for calculating kinematically feasible system
@@ -88,13 +93,18 @@ class TpikController(BaseController):
 
     def __init__(self) -> None:
         """Create a new TPIK node."""
-        super().__init__("tpik_controller")
+        super().__init__("tpik_joint_trajectory_controller")
 
-        self.declare_parameter("hierarchy_file", "")
-        self.declare_parameter("inertial_frame", "map")
-        self.declare_parameter("base_frame", "base_link")
-        self.declare_parameter("manipulator_base_link", "alpha_base_link")
-        self.declare_parameter("manipulator_end_link", "alpha_standard_jaws_tool")
+        self.declare_parameters(
+            namespace="",
+            parameters=[  # type: ignore
+                ("hierarchy_file", ""),
+                ("inertial_frame", "map"),
+                ("base_frame", "base_link"),
+                ("manipulator_base_link", "alpha_base_link"),
+                ("manipulator_end_link", "alpha_standard_jaws_tool"),
+            ],
+        )
 
         # Don't run the controller until everything has been properly initialized
         self._description_received = False
@@ -139,6 +149,36 @@ class TpikController(BaseController):
         self.robot_trajectory_pub = self.create_publisher(
             RobotTrajectory, "/angler/robot_trajectory", 1
         )
+
+    @property
+    def joint_state(self) -> MultiDOFJointTrajectoryPoint:
+        """Get the end-effector pose in the inertial frame.
+
+        We control the end-effector state with this particular variation of the
+        controller.
+
+        Returns:
+            The end-effector pose in the inertial frame.
+        """
+        point = MultiDOFJointTrajectoryPoint()
+
+        # Control the end-effector pose
+        try:
+            tf_map_to_ee = self.tf_buffer.lookup_transform(
+                self.inertial_frame,
+                self.manipulator_ee_frame,
+                Time(),
+                Duration(nanoseconds=10000000),  # 10 ms
+            )
+        except TransformException as e:
+            self.get_logger().warning(
+                "Failed to get the current transformation from the map to end-effector"
+                f"frame: {e}"
+            )
+            return point
+
+        point.transforms.append(tf_map_to_ee.transform)  # type: ignore
+        return point
 
     def on_arm(self) -> bool:
         """Make sure that the system has been initialized before enabling arming.
@@ -247,7 +287,16 @@ class TpikController(BaseController):
 
     def on_update(self) -> None:
         """Calculate the desired system velocities using set-based TPIK."""
+        # Update the joint command first
+        super().on_update()
+
         hierarchies = self.hierarchy.hierarchies
+
+        # Set the desired trajectory value
+        for hierarchy in hierarchies:
+            for task in hierarchy:
+                if isinstance(task, EndEffectorPoseTask) and self.command is not None:
+                    task.desired_value = self.command.transforms[0]  # type: ignore
 
         # Check whether or not the hierarchies have any set tasks
         has_set_tasks = any(

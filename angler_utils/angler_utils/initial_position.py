@@ -42,20 +42,22 @@ class InitialPositionSetter(Node):
         """Create a new initial position setter."""
         super().__init__("initial_position_setter")
 
-        # Parameters
-        self.declare_parameter(
-            "initial_positions_file",
-            os.path.join(
-                get_package_share_directory("angler_description"),
-                "config",
-                "initial_positions.yaml",
-            ),
+        self.declare_parameters(
+            namespace="",
+            parameters=[  # type: ignore
+                (
+                    "initial_positions_file",
+                    os.path.join(
+                        get_package_share_directory("angler_description"),
+                        "config",
+                        "initial_positions.yaml",
+                    ),
+                ),
+                ("controller_cmd_topic", "/forward_velocity_controller/commands"),
+                ("position_tol", 0.1),
+                ("joint_velocity", 0.5),
+            ],
         )
-        self.declare_parameter(
-            "controller_cmd_topic", "/forward_velocity_controller/commands"
-        )
-        self.declare_parameter("position_tol", 0.1)
-        self.declare_parameter("joint_velocity", 0.5)  # fast af boi
 
         # Get the desired initial positions
         with open(

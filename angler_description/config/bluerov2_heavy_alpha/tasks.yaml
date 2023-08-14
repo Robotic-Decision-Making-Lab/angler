@@ -18,9 +18,12 @@
   gain: 0.3
   joint: 6  # axis e
 
+# This task is required for trajectory tracking
 - task: "end_effector_pose_eq"
   priority: 2
   gain: 0.3
+  # Set the initial position to move to
+  # when the controller is armed
   x: 0.0
   y: 0.0
   z: -1.0

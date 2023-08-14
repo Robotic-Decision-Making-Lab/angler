@@ -49,9 +49,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "controller",
-            default_value="tpik_controller",
+            default_value="tpik_joint_trajectory_controller",
             description="The whole-body controller to load.",
-            choices=["tpik_controller"],
+            choices=["tpik_joint_trajectory_controller"],
         ),
     ]
 
@@ -72,7 +72,9 @@ def generate_launch_description() -> LaunchDescription:
                 }
             ],
             condition=IfCondition(
-                PythonExpression(["'", controller, "' == 'tpik_controller'"])
+                PythonExpression(
+                    ["'", controller, "' == 'tpik_joint_trajectory_controller'"]
+                )
             ),
         ),
     ]

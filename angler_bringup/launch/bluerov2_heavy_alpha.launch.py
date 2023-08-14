@@ -211,9 +211,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "whole_body_controller",
-            default_value="tpik_controller",
+            default_value="tpik_joint_trajectory_controller",
             description="The whole-body controller to load.",
-            choices=["tpik_controller"],
+            choices=["tpik_joint_trajectory_controller"],
         ),
     ]
 

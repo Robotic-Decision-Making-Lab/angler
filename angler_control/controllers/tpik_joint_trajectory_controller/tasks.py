@@ -21,7 +21,10 @@
 from typing import Any
 
 import numpy as np
-from controllers.tpik_controller.constraints import EqualityConstraint, SetConstraint
+from controllers.tpik_joint_trajectory_controller.constraints import (
+    EqualityConstraint,
+    SetConstraint,
+)
 from geometry_msgs.msg import Quaternion, Transform
 from scipy.spatial.transform import Rotation as R
 
@@ -281,7 +284,7 @@ class EndEffectorPoseTask(EqualityConstraint):
     name = "end_effector_pose_eq"
 
     def __init__(self, gain: float, priority: float) -> None:
-        """Create a new end effector pose task.
+        """Create a new end-effector pose task.
 
         Args:
             gain: The task gain.
@@ -308,26 +311,26 @@ class EndEffectorPoseTask(EqualityConstraint):
         pitch: float | None = None,
         yaw: float | None = None,
     ) -> Any:
-        """Create a new end effector pose task from a set of parameters.
+        """Create a new end-effector pose task from a set of parameters.
 
         Args:
             gain: The task gain.
             priority: The task priority.
-            x: The desired end effector x position in the inertial (map) frame. Defaults
+            x: The desired end-effector x position in the inertial (map) frame. Defaults
                 to None.
-            y: The desired end effector y position in the inertial (map) frame. Defaults
+            y: The desired end-effector y position in the inertial (map) frame. Defaults
                 to None.
-            z: The desired end effector z position in the inertial (map) frame. Defaults
+            z: The desired end-effector z position in the inertial (map) frame. Defaults
                 to None.
-            roll: The desired end effector roll in the inertial (map) frame. Defaults
+            roll: The desired end-effector roll in the inertial (map) frame. Defaults
                 to None.
-            pitch: The desired end effector pitch in the inertial (map) frame. Defaults
+            pitch: The desired end-effector pitch in the inertial (map) frame. Defaults
                 to None.
-            yaw: The desired end effector yaw in the inertial (map) frame. Defaults
+            yaw: The desired end-effector yaw in the inertial (map) frame. Defaults
                 to None.
 
         Returns:
-            A new end effector pose task.
+            A new end-effector pose task.
         """
         task = EndEffectorPoseTask(gain, priority)
 
@@ -357,21 +360,21 @@ class EndEffectorPoseTask(EqualityConstraint):
         serial_chain: Any | None = None,
         desired_pose: Transform | None = None,
     ) -> None:
-        """Update the current context of the end effector pose task.
+        """Update the current context of the end-effector pose task.
 
         Args:
             joint_angles: The current manipulator joint angles.
             current_pose: The current vehicle pose in the inertial (map) frame.
             tf_map_to_ee: The transformation from the inertial (map) frame to the
-                end effector frame.
+                end-effector frame.
             tf_map_to_base: The transformation from the inertial (map) frame to the
                 vehicle base frame.
             tf_base_to_manipulator_base: The transformation from the vehicle base frame
                 to the manipulator base frame.
             tf_manipulator_base_to_ee: The transformation from the manipulator base
-                frame to the end effector frame.
+                frame to the end-effector frame.
             serial_chain: The manipulator kinpy serial chain. Defaults to None.
-            desired_pose: The desired end effector pose. Defaults to None.
+            desired_pose: The desired end-effector pose. Defaults to None.
         """
         self.joint_angles = joint_angles
         self.current_value = tf_map_to_ee
@@ -406,7 +409,7 @@ class EndEffectorPoseTask(EqualityConstraint):
         """Calculate the reference signal for the controller.
 
         Returns:
-            The reference signal to use to drive the system to the desired end effector
+            The reference signal to use to drive the system to the desired end-effector
                 pose.
         """
         pos_error = np.array(
