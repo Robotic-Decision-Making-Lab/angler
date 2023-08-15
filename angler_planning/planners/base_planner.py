@@ -38,7 +38,7 @@ class Planner(Node, ABC):
         ABC.__init__(self)
 
         self.planning_srv = self.create_service(
-            GetMotionPlan, f"~/angler/{node_name}/plan", self.plan
+            GetMotionPlan, f"/angler/{node_name}/plan", self.plan
         )
 
     @abstractmethod

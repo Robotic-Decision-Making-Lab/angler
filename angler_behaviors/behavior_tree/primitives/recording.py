@@ -17,3 +17,14 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import py_trees
+import py_trees_ros
+
+
+def make_start_bag_file_behavior(topics: list[str], filename: str | None = None):
+    ...
+
+
+def make_stop_bag_file_behavior(filename_key: str):
+    ...

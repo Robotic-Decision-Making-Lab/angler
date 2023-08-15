@@ -21,13 +21,70 @@
 import py_trees
 import py_trees_ros
 import rclpy
+from behavior_tree.behaviors.mission import (
+    make_execute_mission_behavior,
+    make_save_start_mission_behavior,
+)
+from behavior_tree.behaviors.setup import make_setup_behavior
+from behavior_tree.primitives.arming import (
+    make_block_on_disarm_behavior,
+    make_save_robot_state_behavior,
+)
+from behavior_tree.primitives.planning import make_save_armed_behavior
 
 
 def make_angler_tree() -> py_trees.behaviour.Behaviour:
+    """Make a behavior tree that runs the full Angler system.
+
+    Returns:
+        A behavior tree that provides full-system autonomy.
+    """
     root = py_trees.composites.Parallel(
         name="Angler Autonomy",
         policy=py_trees.common.ParallelPolicy.SuccessOnAll(synchronise=False),
     )
+
+    # Add the data gathering behaviors
+    start_mission_key = "start_mission"
+    armed_key = "armed"
+    robot_state_key = "robot_state"
+
+    data_gathering = py_trees.composites.Sequence(
+        name="Data gathering",
+        memory=True,
+        children=[
+            make_save_start_mission_behavior(start_mission_key),
+            make_save_armed_behavior(armed_key),
+            make_save_robot_state_behavior(robot_state_key),
+        ],
+    )
+
+    root.add_child(data_gathering)
+
+    setup_finished_flag_key = "setup_finished"
+    start_mission_key = "start_mission"
+
+    setup_and_execute_mission = py_trees.composites.Sequence(
+        name="Setup and execute mission",
+        memory=True,
+        children=[
+            make_setup_behavior(setup_finished_flag_key),
+            make_execute_mission_behavior(start_mission_key, robot_state_key),
+        ],
+    )
+
+    tasks = make_block_on_disarm_behavior(
+        armed_key,
+        setup_and_execute_mission,
+        on_disarm_behavior=py_trees.behaviours.SetBlackboardVariable(
+            name="Setup needs to be redone",
+            variable_name=setup_finished_flag_key,
+            variable_value=False,
+            overwrite=True,
+        ),
+    )
+
+    root.add_child(tasks)
 
     return root
 
