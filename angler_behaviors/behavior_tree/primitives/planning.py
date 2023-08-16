@@ -24,9 +24,12 @@ from behavior_tree.primitives.blackboard import FunctionOfBlackboardVariables
 from behavior_tree.primitives.service_clients import FromBlackboard
 from moveit_msgs.msg import RobotState
 from moveit_msgs.srv import GetMotionPlan
+from rclpy.qos import qos_profile_sensor_data
 
 
-def make_save_armed_behavior(robot_state_key: str) -> py_trees.behaviour.Behaviour:
+def make_save_robot_state_behavior(
+    robot_state_key: str,
+) -> py_trees.behaviour.Behaviour:
     """Save the current robot state.
 
     Returns:
@@ -36,7 +39,7 @@ def make_save_armed_behavior(robot_state_key: str) -> py_trees.behaviour.Behavio
         name="ROS2BB: Robot state",
         topic_name="/angler/state",
         topic_type=RobotState,
-        qos_profile=py_trees_ros.utilities.qos_profile_latched(),
+        qos_profile=qos_profile_sensor_data,
         blackboard_variables={robot_state_key: None},
         clearing_policy=py_trees.common.ClearingPolicy.NEVER,
     )

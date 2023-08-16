@@ -28,9 +28,9 @@ from behavior_tree.behaviors.mission import (
 from behavior_tree.behaviors.setup import make_setup_behavior
 from behavior_tree.primitives.arming import (
     make_block_on_disarm_behavior,
-    make_save_robot_state_behavior,
+    make_save_armed_behavior,
 )
-from behavior_tree.primitives.planning import make_save_armed_behavior
+from behavior_tree.primitives.planning import make_save_robot_state_behavior
 
 
 def make_angler_tree() -> py_trees.behaviour.Behaviour:
@@ -63,13 +63,39 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
 
     setup_finished_flag_key = "setup_finished"
     start_mission_key = "start_mission"
+    high_level_planner_id_key = "high_level_planner_id"
+    controller_id_key = "controller_id"
+
+    # TODO(evan): Don't hard-code these
+    # This will be replaced when I integrate support for pluginlib so that you
+    # can dynamically load/unload planners
+    planner_id_to_bb = py_trees.behaviours.SetBlackboardVariable(
+        name="Save the high-level planner ID to the BB",
+        variable_name=high_level_planner_id_key,
+        variable_value="preplanned_end_effector_waypoint_planner",
+        overwrite=True,
+    )
+
+    controller_id_to_bb = py_trees.behaviours.SetBlackboardVariable(
+        name="Save the controller ID to the BB",
+        variable_name=controller_id_key,
+        variable_value="tpik_joint_trajectory_controller",
+        overwrite=True,
+    )
 
     setup_and_execute_mission = py_trees.composites.Sequence(
         name="Setup and execute mission",
         memory=True,
         children=[
-            make_setup_behavior(setup_finished_flag_key),
-            make_execute_mission_behavior(start_mission_key, robot_state_key),
+            make_setup_behavior(setup_finished_flag_key=setup_finished_flag_key),
+            planner_id_to_bb,
+            controller_id_to_bb,
+            make_execute_mission_behavior(
+                start_mission_key=start_mission_key,
+                robot_state_key=robot_state_key,
+                planner_id_key=high_level_planner_id_key,
+                controller_id_key=controller_id_key,
+            ),
         ],
     )
 
@@ -98,10 +124,12 @@ def main(args: list[str] | None = None):
     tree = py_trees_ros.trees.BehaviourTree(root)
 
     # Setup the tree; this will throw if there is a timeout
-    tree.setup(timeout=5.0)
+    tree.setup(timeout=15.0)
 
     # Run the tree at a rate of 20hz
     tree.tick_tock(50)
+
+    rclpy.spin(tree.node)  # type: ignore
 
     tree.shutdown()
     rclpy.shutdown()

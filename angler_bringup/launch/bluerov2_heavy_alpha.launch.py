@@ -423,6 +423,14 @@ def generate_launch_description() -> LaunchDescription:
             }.items(),
             condition=IfCondition(LaunchConfiguration("use_whole_body_control")),
         ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("angler_behaviors"), "behavior_tree.launch.py"]
+                )
+            ),
+            launch_arguments={"use_sim_time": use_sim}.items(),
+        ),
     ]
 
     return LaunchDescription(args + nodes + includes)

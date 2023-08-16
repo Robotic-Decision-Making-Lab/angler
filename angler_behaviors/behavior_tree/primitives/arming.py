@@ -28,7 +28,7 @@ from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
 
 
-def make_save_robot_state_behavior(arm_system_key: str) -> py_trees.behaviour.Behaviour:
+def make_save_armed_behavior(arm_system_key: str) -> py_trees.behaviour.Behaviour:
     """Save a command to arm/disarm the system to the blackboard.
 
     Returns:
@@ -80,13 +80,13 @@ def make_block_on_disarm_behavior(
     on_disarm = py_trees.composites.Sequence(
         name="Execute disarm sequence",
         memory=True,
-        children=[behaviors],  # type: ignore
+        children=behaviors,  # type: ignore
     )
 
     disarm = py_trees.decorators.EternalGuard(
         name="Disarm?",
         condition=check_disarm_on_blackboard,
-        blackboard_keys={"disarm"},
+        blackboard_keys=[arm_system_key],
         child=on_disarm,
     )
 
