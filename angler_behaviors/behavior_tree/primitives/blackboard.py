@@ -18,9 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import copy
 from typing import Any, Callable
 
 import py_trees
+from py_trees_ros.subscribers import Handler
+from rclpy.qos import QoSProfile
 
 
 class FunctionOfBlackboardVariables(py_trees.behaviour.Behaviour):
@@ -96,3 +99,83 @@ class FunctionOfBlackboardVariables(py_trees.behaviour.Behaviour):
         self.blackboard.set(self.output_key, result)
 
         return py_trees.common.Status.SUCCESS
+
+
+class ToBlackboardNonBlocking(Handler):
+    """Write a ROS message to the blackboard.
+
+    This class is a port of the `py_trees_ros.subscribers.ToBlackboard`, but modifies
+    it to make the behavior non-blocking.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        topic_name: str,
+        topic_type: Any,
+        qos_profile: QoSProfile,
+        blackboard_variables: dict[str, Any],
+        initialise_variables: dict[str, Any] | None = None,
+        clearing_policy=py_trees.common.ClearingPolicy.ON_INITIALISE,
+    ):
+        """Create a new non-blocking `ToBlackboard` behavior.
+
+        Args:
+            name: The name of the behavior.
+            topic_name: The name of the topic to connect to.
+            topic_type: The class of the message type (e.g., :obj:`std_msgs.msg.String`)
+            qos_profile: The QoSProfile for the subscriber.
+            blackboard_variables: The blackboard variable to write to. This should be
+                formatted as: {names (keys): message subfields (values)}. Use a value of
+                `None` to indicate that the entire message should be saved.
+            initialise_variables: Initialize the blackboard variables to some defaults.
+            clearing_policy: When to clear the data. Defaults to
+                `py_trees.common.ClearingPolicy.ON_INITIALISE`.
+        """
+        super().__init__(
+            name=name,
+            topic_name=topic_name,
+            topic_type=topic_type,
+            qos_profile=qos_profile,
+            clearing_policy=clearing_policy,
+        )
+        self.blackboard = self.attach_blackboard_client(name=self.name)
+        self.logger = py_trees.logging.Logger(f"{self.name}")
+        self.blackboard_variable_mapping = blackboard_variables
+
+        # Register the keys
+        for name in self.blackboard_variable_mapping:
+            self.blackboard.register_key(key=name, access=py_trees.common.Access.WRITE)
+
+        # Set the keys to some initial values
+        if initialise_variables is not None:
+            for k, v in initialise_variables.items():
+                self.blackboard.set(k, v)
+
+    def update(self):
+        """Write the data (if available) to the blackboard.
+
+        Returns:
+            This behavior always returns `SUCCESS`.
+        """
+        with self.data_guard:
+            if self.msg is None:
+                self.feedback_message = "no message received yet"
+                return py_trees.common.Status.SUCCESS
+            else:
+                for k, v in self.blackboard_variable_mapping.items():
+                    if v is None:
+                        self.blackboard.set(k, self.msg, overwrite=True)
+                    else:
+                        fields = v.split(".")
+                        value = copy.copy(self.msg)
+                        for field in fields:
+                            value = getattr(value, field)
+                            self.blackboard.set(k, value, overwrite=True)
+
+                self.feedback_message = "saved incoming message"
+
+                if self.clearing_policy == py_trees.common.ClearingPolicy.ON_SUCCESS:
+                    self.msg = None
+
+                return py_trees.common.Status.SUCCESS

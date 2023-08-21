@@ -18,6 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import operator
+
 import py_trees
 import py_trees_ros
 import rclpy
@@ -62,7 +64,6 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
     root.add_child(data_gathering)
 
     setup_finished_flag_key = "setup_finished"
-    start_mission_key = "start_mission"
     high_level_planner_id_key = "high_level_planner_id"
     controller_id_key = "controller_id"
 
@@ -76,41 +77,41 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
         overwrite=True,
     )
 
-    controller_id_to_bb = py_trees.behaviours.SetBlackboardVariable(
-        name="Save the controller ID to the BB",
-        variable_name=controller_id_key,
-        variable_value="tpik_joint_trajectory_controller",
-        overwrite=True,
-    )
+    # controller_id_to_bb = py_trees.behaviours.SetBlackboardVariable(
+    #     name="Save the controller ID to the BB",
+    #     variable_name=controller_id_key,
+    #     variable_value="tpik_joint_trajectory_controller",
+    #     overwrite=True,
+    # )
 
-    setup_and_execute_mission = py_trees.composites.Sequence(
-        name="Setup and execute mission",
-        memory=True,
-        children=[
-            make_setup_behavior(setup_finished_flag_key=setup_finished_flag_key),
-            planner_id_to_bb,
-            controller_id_to_bb,
-            make_execute_mission_behavior(
-                start_mission_key=start_mission_key,
-                robot_state_key=robot_state_key,
-                planner_id_key=high_level_planner_id_key,
-                controller_id_key=controller_id_key,
-            ),
-        ],
-    )
+    # setup_and_execute_mission = py_trees.composites.Sequence(
+    #     name="Setup and execute mission",
+    #     memory=True,
+    #     children=[
+    #         make_setup_behavior(setup_finished_flag_key=setup_finished_flag_key),
+    #         planner_id_to_bb,
+    #         controller_id_to_bb,
+    #         make_execute_mission_behavior(
+    #             start_mission_key=start_mission_key,
+    #             robot_state_key=robot_state_key,
+    #             planner_id_key=high_level_planner_id_key,
+    #             controller_id_key=controller_id_key,
+    #         ),
+    #     ],
+    # )
 
-    tasks = make_block_on_disarm_behavior(
-        armed_key,
-        setup_and_execute_mission,
-        on_disarm_behavior=py_trees.behaviours.SetBlackboardVariable(
-            name="Setup needs to be redone",
-            variable_name=setup_finished_flag_key,
-            variable_value=False,
-            overwrite=True,
-        ),
-    )
+    # tasks = make_block_on_disarm_behavior(
+    #     armed_key,
+    #     setup_and_execute_mission,
+    #     on_disarm_behavior=py_trees.behaviours.SetBlackboardVariable(
+    #         name="Setup needs to be redone",
+    #         variable_name=setup_finished_flag_key,
+    #         variable_value=False,
+    #         overwrite=True,
+    #     ),
+    # )
 
-    root.add_child(tasks)
+    # root.add_child(tasks)
 
     return root
 

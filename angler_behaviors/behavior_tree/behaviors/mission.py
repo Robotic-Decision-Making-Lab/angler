@@ -24,7 +24,6 @@ import py_trees
 import py_trees_ros
 from behavior_tree.primitives.control import make_execute_multidof_trajectory_behavior
 from behavior_tree.primitives.planning import make_high_level_planning_behavior
-from std_msgs.msg import Bool
 
 
 def make_save_start_mission_behavior(
@@ -38,13 +37,11 @@ def make_save_start_mission_behavior(
     Returns:
         A behavior that saves the key to trigger arming.
     """
-    return py_trees_ros.subscribers.ToBlackboard(
+    return py_trees_ros.subscribers.EventToBlackboard(
         name="ROS2BB: Start mission",
         topic_name="/angler/cmd/start_mission",
-        topic_type=Bool,
-        qos_profile=py_trees_ros.utilities.qos_profile_latched(),
-        blackboard_variables={start_mission_key: None},
-        clearing_policy=py_trees.common.ClearingPolicy.ON_SUCCESS,
+        qos_profile=py_trees_ros.utilities.qos_profile_unlatched(),
+        variable_name=start_mission_key,
     )
 
 

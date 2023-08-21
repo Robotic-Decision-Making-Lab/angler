@@ -22,7 +22,10 @@ import operator
 
 import py_trees
 import py_trees_ros
-from behavior_tree.primitives.blackboard import FunctionOfBlackboardVariables
+from behavior_tree.primitives.blackboard import (
+    FunctionOfBlackboardVariables,
+    ToBlackboardNonBlocking,
+)
 from behavior_tree.primitives.service_clients import FromConstant
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
@@ -35,13 +38,14 @@ def make_save_armed_behavior(arm_system_key: str) -> py_trees.behaviour.Behaviou
         A ToBlackboard behavior which saves commands to arm/disarm the system to the
         blackboard.
     """
-    return py_trees_ros.subscribers.ToBlackboard(
+    return ToBlackboardNonBlocking(
         name="ROS2BB: Arm system",
         topic_name="/angler/cmd/arm_autonomy",
         topic_type=Bool,
-        qos_profile=py_trees_ros.utilities.qos_profile_latched(),
-        blackboard_variables={arm_system_key: None},
-        clearing_policy=py_trees.common.ClearingPolicy.NEVER,
+        qos_profile=py_trees_ros.utilities.qos_profile_unlatched(),
+        blackboard_variables={arm_system_key: "data"},
+        initialise_variables={arm_system_key: False},
+        clearing_policy=py_trees.common.ClearingPolicy.ON_SUCCESS,
     )
 
 
