@@ -49,56 +49,6 @@ def make_save_armed_behavior(arm_system_key: str) -> py_trees.behaviour.Behaviou
     )
 
 
-def make_block_on_disarm_behavior(
-    arm_system_key: str,
-    tasks: py_trees.behaviour.Behaviour,
-    on_disarm_behavior: py_trees.behaviour.Behaviour | None = None,
-) -> py_trees.behaviour.Behaviour:
-    """Make a behavior that blocks when the system is disarmed.
-
-    Args:
-        arm_system_key: The key at which the arm system flag is stored.
-        tasks: A behavior with the tasks to run.
-        on_disarm_behavior: An optional behavior to run when a disarm is triggered. This
-            will be executed as a Sequence behavior following the disarm behavior.
-
-    Returns:
-        A Selector behavior with the disarm EternalGuard as the highest priority
-        behavior and the provided tasks as second priority.
-    """
-
-    def check_disarm_on_blackboard(
-        blackboard: py_trees.blackboard.Blackboard,
-    ) -> bool:
-        # We want to stop when a user issues a disarm command
-        return not blackboard.get(arm_system_key)
-
-    # Default to disarming passthrough mode just in case
-    disarming = make_system_arming_behavior(False, use_passthrough_mode=True)
-
-    behaviors = [disarming]
-
-    if on_disarm_behavior is not None:
-        behaviors.append(on_disarm_behavior)  # type: ignore
-
-    on_disarm = py_trees.composites.Sequence(
-        name="Execute disarm sequence",
-        memory=True,
-        children=behaviors,  # type: ignore
-    )
-
-    disarm = py_trees.decorators.EternalGuard(
-        name="Disarm?",
-        condition=check_disarm_on_blackboard,
-        blackboard_keys=[arm_system_key],
-        child=on_disarm,
-    )
-
-    return py_trees.composites.Selector(
-        name="Block tasks on disarm", memory=False, children=[disarm, tasks]
-    )
-
-
 def make_subsystem_arming_behavior(
     arm: bool, subsystem_name: str, arming_topic: str
 ) -> py_trees.behaviour.Behaviour:
@@ -145,7 +95,7 @@ def make_subsystem_arming_behavior(
     )
 
 
-def make_system_arming_behavior(arm: bool, use_passthrough_mode: bool):
+def make_system_arming_behavior(arm: bool, armed_key: str, use_passthrough_mode: bool):
     """Create a behavior that arms/disarms the system.
 
     The full system arming sequence includes:
@@ -155,6 +105,7 @@ def make_system_arming_behavior(arm: bool, use_passthrough_mode: bool):
 
     Args:
         arm: Set to `True` to arm the system; set to `False` to disarm.
+        armed_key: The key at which to store the resulting arming status.
         use_passthrough_mode: Use the Blue PWM passthrough mode. Take care when using
             this mode. All safety checks onboard the system will be disabled.
             Furthermore, make sure to leave PWM passthrough mode before shutdown, or
@@ -163,10 +114,18 @@ def make_system_arming_behavior(arm: bool, use_passthrough_mode: bool):
     Returns:
         A behavior that runs the full system arming sequence.
     """
-    # Now put everything together
+    set_armed_state = py_trees.behaviours.SetBlackboardVariable(
+        name="Set the current arming status",
+        variable_name=armed_key,
+        variable_value=arm,
+        overwrite=True,
+    )
+
+    # Put everything together
     behaviors = [
         make_subsystem_arming_behavior(arm, "Blue Controller", "/blue/cmd/arm"),
         make_subsystem_arming_behavior(arm, "Angler Controller", "/angler/cmd/arm"),
+        set_armed_state,
     ]
 
     if use_passthrough_mode:
@@ -177,8 +136,74 @@ def make_system_arming_behavior(arm: bool, use_passthrough_mode: bool):
             ),
         )
 
-    return py_trees.composites.Sequence(
+    check_already_disarmed = py_trees.behaviours.CheckBlackboardVariableValue(
+        name="Already armed?" if arm else "Already disarmed?",
+        check=py_trees.common.ComparisonExpression(
+            variable=armed_key, value=arm, operator=operator.eq
+        ),
+    )
+    do_arming = py_trees.composites.Sequence(
         name="Enable system autonomy" if arm else "Disable system autonomy",
         memory=True,
         children=behaviors,  # type: ignore
+    )
+
+    return py_trees.composites.Selector(
+        "Don't do what has already been done!",
+        memory=False,
+        children=[check_already_disarmed, do_arming],
+    )
+
+
+def make_block_on_disarm_behavior(
+    arm_system_key: str,
+    armed_key: str,
+    tasks: py_trees.behaviour.Behaviour,
+    on_disarm_behavior: py_trees.behaviour.Behaviour | None = None,
+) -> py_trees.behaviour.Behaviour:
+    """Make a behavior that blocks when the system is disarmed.
+
+    Args:
+        arm_system_key: The key at which the arm system flag is stored.
+        armed_key: The key at which to store the resulting arming status.
+        tasks: A behavior with the tasks to run.
+        on_disarm_behavior: An optional behavior to run when a disarm is triggered. This
+            will be executed as a Sequence behavior following the disarm behavior.
+
+    Returns:
+        A Selector behavior with the disarm EternalGuard as the highest priority
+        behavior and the provided tasks as second priority.
+    """
+
+    def check_disarm_on_blackboard(
+        blackboard: py_trees.blackboard.Blackboard,
+    ) -> bool:
+        # We want to stop when a user issues a disarm command
+        return not blackboard.get(arm_system_key)
+
+    # Default to disarming passthrough mode just in case
+    disarming = make_system_arming_behavior(
+        False, armed_key=armed_key, use_passthrough_mode=True
+    )
+
+    behaviors = [disarming]
+
+    if on_disarm_behavior is not None:
+        behaviors.append(on_disarm_behavior)  # type: ignore
+
+    on_disarm = py_trees.composites.Sequence(
+        name="Execute disarm sequence",
+        memory=True,
+        children=behaviors,  # type: ignore
+    )
+
+    disarm = py_trees.decorators.EternalGuard(
+        name="Disarm?",
+        condition=check_disarm_on_blackboard,
+        blackboard_keys=[arm_system_key],
+        child=on_disarm,
+    )
+
+    return py_trees.composites.Selector(
+        name="Block tasks on disarm", memory=False, children=[disarm, tasks]
     )

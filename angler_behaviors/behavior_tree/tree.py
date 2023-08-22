@@ -46,6 +46,7 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
 
     # Add the data gathering behaviors
     start_mission_key = "start_mission"
+    arm_system_key = "arm_system"
     armed_key = "armed"
     robot_state_key = "robot_state"
 
@@ -54,7 +55,7 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
         memory=True,
         children=[
             make_save_start_mission_behavior(start_mission_key),
-            make_save_armed_behavior(armed_key),
+            make_save_armed_behavior(arm_system_key),
             make_save_robot_state_behavior(robot_state_key),
         ],
     )
@@ -62,24 +63,29 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
     root.add_child(data_gathering)
 
     setup_finished_flag_key = "setup_finished"
+    idle = py_trees.behaviours.Running(name="Idle")
 
     setup_and_execute_mission = py_trees.composites.Sequence(
         name="Setup and execute mission",
         memory=True,
         children=[
-            make_setup_behavior(setup_finished_flag_key=setup_finished_flag_key),
+            make_setup_behavior(
+                setup_finished_flag_key=setup_finished_flag_key, armed_key=armed_key
+            ),
             make_execute_mission_behavior(
                 start_mission_key=start_mission_key,
                 robot_state_key=robot_state_key,
                 planner_id="preplanned_end_effector_waypoint_planner",
                 controller_id="tpik_joint_trajectory_controller",
             ),
+            idle,
         ],
     )
 
     tasks = make_block_on_disarm_behavior(
-        armed_key,
-        setup_and_execute_mission,
+        arm_system_key=arm_system_key,
+        armed_key=armed_key,
+        tasks=setup_and_execute_mission,
         on_disarm_behavior=py_trees.behaviours.SetBlackboardVariable(
             name="Setup needs to be redone",
             variable_name=setup_finished_flag_key,

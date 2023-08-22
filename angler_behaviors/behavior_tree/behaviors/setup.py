@@ -24,7 +24,9 @@ import py_trees
 from behavior_tree.primitives.arming import make_system_arming_behavior
 
 
-def make_setup_behavior(setup_finished_flag_key: str) -> py_trees.behaviour.Behaviour:
+def make_setup_behavior(
+    setup_finished_flag_key: str, armed_key: str
+) -> py_trees.behaviour.Behaviour:
     """Make a behavior that sets up the system prior to beginning a mission.
 
     Args:
@@ -42,7 +44,9 @@ def make_setup_behavior(setup_finished_flag_key: str) -> py_trees.behaviour.Beha
     )
 
     # Once we have a plan, arm so that we can start trajectory tracking
-    arming = make_system_arming_behavior(arm=True, use_passthrough_mode=True)
+    arming = make_system_arming_behavior(
+        arm=True, armed_key=armed_key, use_passthrough_mode=True
+    )
 
     # Finish up by indicating that the setup has finished
     finished_setup = py_trees.behaviours.SetBlackboardVariable(
