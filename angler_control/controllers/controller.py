@@ -86,7 +86,7 @@ class BaseController(ABC, Node):
     @abstractmethod
     def on_update(self) -> None:
         """Execute this function on control loop iteration."""
-        ...
+        raise NotImplementedError("This method has not yet been implemented!")
 
     def _update(self) -> None:
         """Run the control loop."""

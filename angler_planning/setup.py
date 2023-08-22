@@ -36,7 +36,7 @@ setup(
         (
             os.path.join("share", package_name, "trajectories", "library"),
             glob(
-                "waypoint_planners/preplanned_end_effector_planner/trajectories/library/*.json"  # noqa
+                "planners/waypoint_planners/preplanned_end_effector_planner/trajectories/library/*.json"  # noqa
             ),
         ),
         (

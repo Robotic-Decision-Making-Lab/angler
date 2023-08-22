@@ -112,7 +112,7 @@ class BaseMultiDOFJointTrajectoryController(BaseController):
         Returns:
             The joint state.
         """
-        ...
+        raise NotImplementedError("This method has not yet been implemented!")
 
     def handle_action_request_cb(self, goal_handle: ServerGoalHandle) -> GoalResponse:
         """Accept or reject the action request.

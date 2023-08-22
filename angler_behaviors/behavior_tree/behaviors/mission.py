@@ -48,8 +48,8 @@ def make_save_start_mission_behavior(
 def make_execute_mission_behavior(
     start_mission_key: str,
     robot_state_key: str,
-    planner_id_key: str,
-    controller_id_key: str,
+    planner_id: str,
+    controller_id: str,
 ) -> py_trees.behaviour.Behaviour:
     """Make a behavior that sets up the system prior to beginning a mission.
 
@@ -57,8 +57,8 @@ def make_execute_mission_behavior(
         start_mission_key: The key at which the signal indicating that a mission should
             start is stored.
         robot_state_key: The key at which the robot state is stored.
-        planner_id_key: The key at which the high-level planner ID is stored.
-        controller_id_key: The key at which the joint trajectory controller ID is
+        planner_id: The key at which the high-level planner ID is stored.
+        controller_id: The key at which the joint trajectory controller ID is
             stored.
 
     Returns:
@@ -74,16 +74,20 @@ def make_execute_mission_behavior(
 
     get_mission_plan = make_high_level_planning_behavior(
         robot_state_key=robot_state_key,
-        planner_id_key=planner_id_key,
+        planner_id=planner_id,
         planning_result_key="planning_result",
     )
 
     execute_mission = make_execute_multidof_trajectory_behavior(
-        trajectory_key="planning_result", controller_id_key=controller_id_key
+        trajectory_key="planning_result", controller_id=controller_id
     )
 
     return py_trees.composites.Sequence(
         name="Execute mission",
         memory=True,
-        children=[check_start_mission, get_mission_plan, execute_mission],
+        children=[
+            check_start_mission,
+            get_mission_plan,
+            execute_mission,
+        ],
     )

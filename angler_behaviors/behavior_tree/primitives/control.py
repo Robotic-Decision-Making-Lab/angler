@@ -22,19 +22,20 @@ import py_trees
 from behavior_tree.primitives.blackboard import FunctionOfBlackboardVariables
 from control_msgs.action import FollowJointTrajectory
 from geometry_msgs.msg import Transform
+from moveit_msgs.srv import GetMotionPlan
 from py_trees_ros.action_clients import FromBlackboard
-from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
+from trajectory_msgs.msg import MultiDOFJointTrajectoryPoint
 
 
 def make_move_to_end_effector_pose_behavior(
-    desired_pose_key: str, controller_id_key: str
+    desired_pose_key: str, controller_id: str
 ) -> py_trees.behaviour.Behaviour:
     """Make a behavior that moves the system to a given end-effector pose.
 
     Args:
         desired_pose_key: The blackboard key which holds the desired pose (saved as a
             Transform).
-        controller_id_key: The key which holds the name of the controller to use.
+        controller_id: The ID of the whole-body controller to load.
 
     Returns:
         A behavior that moves the system to a desired end-effector pose.
@@ -54,11 +55,6 @@ def make_move_to_end_effector_pose_behavior(
         make_move_to_pose_goal,
     )
 
-    # Get the controller ID to reconstruct the planning topic
-    blackboard = py_trees.blackboard.Client()
-    blackboard.register_key(key=controller_id_key, access=py_trees.common.Access.READ)
-    controller_id = blackboard.get(controller_id_key)
-
     move_to_pose = FromBlackboard(
         "Move to the desired end-effector pose",
         FollowJointTrajectory,
@@ -74,23 +70,25 @@ def make_move_to_end_effector_pose_behavior(
 
 
 def make_execute_multidof_trajectory_behavior(
-    trajectory_key: str, controller_id_key: str
+    trajectory_key: str, controller_id: str
 ) -> py_trees.behaviour.Behaviour:
     """Make a behavior that executes a multi-DOF joint trajectory.
 
     Args:
         trajectory_key: The blackboard key at which the trajectory is being stored.
-        controller_id_key: The ID of the controller to run.
+        controller_id: The ID of the controller to run.
 
     Returns:
         A behavior that executes a multi-DOF joint trajectory.
     """
 
     def make_follow_trajectory_goal(
-        trajectory: MultiDOFJointTrajectory,
+        response: GetMotionPlan.Response,
     ) -> FollowJointTrajectory.Goal:
         goal = FollowJointTrajectory.Goal()
-        goal.multi_dof_trajectory = trajectory
+        goal.multi_dof_trajectory = (
+            response.motion_plan_response.trajectory.multi_dof_joint_trajectory
+        )
         return goal
 
     get_desired_trajectory = FunctionOfBlackboardVariables(
@@ -99,11 +97,6 @@ def make_execute_multidof_trajectory_behavior(
         "desired_trajectory",
         make_follow_trajectory_goal,
     )
-
-    # Get the controller ID to reconstruct the planning topic
-    blackboard = py_trees.blackboard.Client()
-    blackboard.register_key(key=controller_id_key, access=py_trees.common.Access.READ)
-    controller_id = blackboard.get(controller_id_key)
 
     follow_trajectory = FromBlackboard(
         "Follow the joint trajectory",

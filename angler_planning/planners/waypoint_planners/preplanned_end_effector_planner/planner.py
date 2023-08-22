@@ -84,7 +84,9 @@ class PrePlannedEndEffectorPlanner(Planner):
         # Get the motion plan response
         response.motion_plan_response.trajectory = self.trajectory
         response.motion_plan_response.planning_time = 0.0
-        response.motion_plan_response.error_code = MoveItErrorCodes.SUCCESS
+        response.motion_plan_response.error_code = MoveItErrorCodes(
+            val=MoveItErrorCodes.SUCCESS
+        )
         response.motion_plan_response.group_name = (
             request.motion_plan_request.group_name
         )

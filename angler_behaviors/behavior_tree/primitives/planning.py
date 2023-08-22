@@ -46,41 +46,36 @@ def make_save_robot_state_behavior(
 
 
 def make_high_level_planning_behavior(
-    robot_state_key: str, planner_id_key: str, planning_result_key: str
+    robot_state_key: str, planning_result_key: str, planner_id: str
 ) -> py_trees.behaviour.Behaviour:
     """Create a high-level planning behavior.
 
     Args:
         robot_state_key: The key at which the robot state is being stored.
+        planning_result_key: The key at which the planning result is saved.
+        planner_id: The ID of the planner to perform high-level planning with.
 
     Returns:
         Behavior that creates a high-level mission plan and saves the result to the
         blackboard.
     """
 
-    def make_planning_request(state: RobotState, planner: str) -> GetMotionPlan.Request:
+    def make_planning_request(state: RobotState) -> GetMotionPlan.Request:
         request = GetMotionPlan.Request()
         request.motion_plan_request.start_state = state
-        request.motion_plan_request.planner_id = planner
+        request.motion_plan_request.planner_id = planner_id
         return request
 
     plan_request_behavior = FunctionOfBlackboardVariables(
         name="Make high-level planner request",
-        input_keys=[robot_state_key, planner_id_key],
+        input_keys=[robot_state_key],
         output_key="high_level_planner_request",
         function=make_planning_request,
     )
 
-    # Get the planner ID to reconstruct the planning topic
-    # This will go away when a planning interface is created that loads planners
-    # according to the planning goal
-    blackboard = py_trees.blackboard.Client()
-    blackboard.register_key(key=planner_id_key, access=py_trees.common.Access.READ)
-    planner_id = blackboard.get(planner_id_key)
-
     plan_behavior = FromBlackboard(
         "Plan a high-level mission",
-        GetMotionPlan.Request,
+        GetMotionPlan,
         f"/angler/{planner_id}/plan",
         "high_level_planner_request",
         planning_result_key,

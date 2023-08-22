@@ -28,7 +28,7 @@ from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectory
 
 
 def create_waypoint_msg(
-    waypoint: dict[str, dict[str, float]]
+    waypoint: dict[str, dict[str, float] | float]
 ) -> MultiDOFJointTrajectoryPoint:
     """Create a new Waypoint message from the JSON data.
 
@@ -40,50 +40,69 @@ def create_waypoint_msg(
     """
     point = MultiDOFJointTrajectoryPoint()
 
+    # Get the time-since-start for the point
+    point.time_from_start.nanosec = int(
+        waypoint["time_from_start"] * 1e9  # type: ignore
+    )
+
     # Get the desired pose
     tf = Transform()
 
     tf.translation.x, tf.translation.y, tf.translation.z, rx, ry, rz = waypoint[
         "transform"
-    ].values()
+    ].values()  # type: ignore
 
     tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w = R.from_euler(
         "xyz", [rx, ry, rz]
     ).as_quat()
 
+    point.transforms = [tf]
+
     # Get the desired velocity
     vel = Twist()
 
-    (
-        vel.linear.x,
-        vel.linear.y,
-        vel.linear.z,
-        vel.angular.x,
-        vel.angular.y,
-        vel.angular.z,
-    ) = waypoint["velocity"].values()
+    try:
+        (
+            vel.linear.x,
+            vel.linear.y,
+            vel.linear.z,
+            vel.angular.x,
+            vel.angular.y,
+            vel.angular.z,
+        ) = waypoint[
+            "velocity"
+        ].values()  # type: ignore
+
+        point.velocities = [vel]
+    except KeyError:
+        # If the velocity isn't provided, don't use it
+        ...
 
     # Finally, get the acceleration
     accel = Twist()
 
-    (
-        accel.linear.x,
-        accel.linear.y,
-        accel.linear.z,
-        accel.angular.x,
-        accel.angular.y,
-        accel.angular.z,
-    ) = waypoint["acceleration"].values()
+    try:
+        (
+            accel.linear.x,
+            accel.linear.y,
+            accel.linear.z,
+            accel.angular.x,
+            accel.angular.y,
+            accel.angular.z,
+        ) = waypoint[
+            "acceleration"
+        ].values()  # type: ignore
 
-    point.transforms = [point]
-    point.velocities = [vel]
-    point.accelerations = [accel]
+        point.accelerations = [accel]
+    except KeyError:
+        # Similar to velocity, we don't require acceleration
+        ...
 
     return point
 
 
 def create_robot_trajectory_msg(
-    parent: str, child: str, waypoints: list[dict[str, dict[str, float]]]
+    parent: str, child: str, waypoints: list[dict[str, dict[str, float] | float]]
 ) -> RobotTrajectory:
     """Creata robot trajectory from JSON parameters.
 
