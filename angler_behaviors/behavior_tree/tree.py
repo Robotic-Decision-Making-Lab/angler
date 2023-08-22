@@ -21,6 +21,7 @@
 import py_trees
 import py_trees_ros
 import rclpy
+from behavior_tree.behaviors.cleanup import make_on_mission_complete_behavior
 from behavior_tree.behaviors.mission import (
     make_execute_mission_behavior,
     make_save_start_mission_behavior,
@@ -63,7 +64,6 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
     root.add_child(data_gathering)
 
     setup_finished_flag_key = "setup_finished"
-    idle = py_trees.behaviours.Running(name="Idle")
 
     setup_and_execute_mission = py_trees.composites.Sequence(
         name="Setup and execute mission",
@@ -78,7 +78,7 @@ def make_angler_tree() -> py_trees.behaviour.Behaviour:
                 planner_id="preplanned_end_effector_waypoint_planner",
                 controller_id="tpik_joint_trajectory_controller",
             ),
-            idle,
+            make_on_mission_complete_behavior(),
         ],
     )
 

@@ -17,3 +17,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import py_trees
+
+
+def make_on_mission_complete_behavior() -> py_trees.behaviour.Behaviour:
+    """Make a behavior that initiates a post-mission completion sequence.
+
+    Returns:
+        A post-mission behavior.
+    """
+    # For now, we just idle on mission completion
+    return py_trees.behaviours.Running("Idle")
