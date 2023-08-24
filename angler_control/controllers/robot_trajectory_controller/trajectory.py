@@ -142,7 +142,7 @@ class MultiDOFTrajectory:
             has_velocity = False
 
         result = MultiDOFJointTrajectoryPoint()
-        result.time_from_start.nanosec = sample_time
+        result.time_from_start.nanosec = duration_from_start
 
         if not has_velocity:
             # Perform linear interpolation between points

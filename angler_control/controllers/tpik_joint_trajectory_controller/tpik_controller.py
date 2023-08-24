@@ -21,6 +21,7 @@
 import kinpy
 import numpy as np
 import rclpy
+import robot_trajectory_controller.utils as controller_utils
 from controllers.robot_trajectory_controller.base_multidof_joint_trajectory_controller import (  # noqa
     BaseMultiDOFJointTrajectoryController,
 )
@@ -36,7 +37,7 @@ from controllers.tpik_joint_trajectory_controller.tasks import (
     VehicleRollPitchTask,
     VehicleYawTask,
 )
-from geometry_msgs.msg import Transform, Twist
+from geometry_msgs.msg import Transform, TransformStamped, Twist
 from moveit_msgs.msg import RobotState, RobotTrajectory
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
@@ -105,10 +106,20 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
                 ("manipulator_end_link", "alpha_standard_jaws_tool"),
             ],
         )
+        self.declare_parameter("max_ee_error", 0.3)
+        self.declare_parameter("radius_proportion", 0.5)
+
+        self.max_ee_error = (
+            self.get_parameter("max_ee_error").get_parameter_value().double_value
+        )
+        self.radius_proportion = (
+            self.get_parameter("radius_proportion").get_parameter_value().double_value
+        )
 
         # Don't run the controller until everything has been properly initialized
         self._description_received = False
         self._init_state_received = False
+        self.tf_map_to_ee: TransformStamped | None = None
 
         # Keep track of the frames
         self.inertial_frame = (
@@ -163,21 +174,23 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
         point = MultiDOFJointTrajectoryPoint()
 
         # Control the end-effector pose
-        try:
-            tf_map_to_ee = self.tf_buffer.lookup_transform(
-                self.inertial_frame,
-                self.manipulator_ee_frame,
-                Time(),
-                Duration(nanoseconds=10000000),  # 10 ms
-            )
-        except TransformException as e:
-            self.get_logger().warning(
-                "Failed to get the current transformation from the map to end-effector"
-                f"frame: {e}"
-            )
-            return point
+        if self.tf_map_to_ee is None:
+            try:
+                self.tf_map_to_ee = self.tf_buffer.lookup_transform(
+                    self.inertial_frame,
+                    self.manipulator_ee_frame,
+                    Time(),
+                    Duration(nanoseconds=10000000),  # 10 ms
+                )
+            except TransformException as e:
+                self.get_logger().warning(
+                    "Failed to get the current transformation from the map to "
+                    f" end-effector frame: {e}"
+                )
+                return point
 
-        point.transforms.append(tf_map_to_ee.transform)  # type: ignore
+        point.transforms.append(self.tf_map_to_ee.transform)  # type: ignore
+
         return point
 
     def on_arm(self) -> bool:
@@ -285,18 +298,87 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
             hierarchy, system_velocities, jacobians, nullspace
         )
 
+    def replan(self) -> None:
+        if self.tf_map_to_ee is None or self.command is None:
+            return
+
+        cmd: Transform = self.command.transforms[0]  # type: ignore
+        state = self.tf_map_to_ee.transform
+
+        cmd_ar = np.array([cmd.translation.x, cmd.translation.y, cmd.translation.z])
+        state_ar = np.array(
+            [state.translation.x, state.translation.y, state.translation.z]
+        )
+
+        error = np.linalg.norm(state_ar - cmd_ar)  # type: ignore
+
+        def multidof_point_to_array(
+            point: MultiDOFJointTrajectoryPoint,
+        ) -> np.ndarray:
+            tf: Transform = point.transforms[0]  # type: ignore
+            return np.array([tf.translation.x, tf.translation.y, tf.translation.z])
+
+        # Check the distance between the current state and desired state
+        # If it's greater than the maximum allowable amount, replan
+        if error > self.max_ee_error:
+            error_sphere_r = self.radius_proportion * error
+
+            # Get all relevant trajectory segments
+            segments = []
+            sample_time = controller_utils.add_ros_time_duration_msg(
+                self.trajectory.starting_time, self.command.time_from_start
+            )
+
+            for i in range(len(self.trajectory.trajectory.points) - 1):
+                point = self.trajectory.trajectory.points[i]  # type: ignore
+                next_point = self.trajectory.trajectory.points[i + 1]  # type: ignore
+
+                t0 = controller_utils.add_ros_time_duration_msg(
+                    self.trajectory.starting_time, point.time_from_start
+                )
+                t1 = controller_utils.add_ros_time_duration_msg(
+                    self.trajectory.starting_time, next_point.time_from_start
+                )
+
+                if t0 <= sample_time <= t1:
+                    # If the sample is between the two points, then create a segment
+                    # from the sample and the next point
+                    segments.append((self.command, next_point))
+                elif sample_time <= t0 and sample_time <= t1:
+                    # If the sample is before the segment, save the full segment
+                    segments.append((point, next_point))
+                else:
+                    # We are at the end of the trajectory: don't replan
+                    return
+
+            def get_intersection():
+                ...
+
+            # Check each segment for the intersections. We want the closest intersection
+            for segment in segments:
+                ...
+
     def on_update(self) -> None:
         """Calculate the desired system velocities using set-based TPIK."""
-        # Update the joint command first
-        super().on_update()
-
         hierarchies = self.hierarchy.hierarchies
 
-        # Set the desired trajectory value
-        for hierarchy in hierarchies:
-            for task in hierarchy:
-                if isinstance(task, EndEffectorPoseTask) and self.command is not None:
-                    task.desired_value = self.command.transforms[0]  # type: ignore
+        # Only update the joint trajectory if there is an end-effector task
+        if any([isinstance(t, EndEffectorPoseTask) for h in hierarchies for t in h]):
+            # Update the joint command first
+            super().on_update()
+
+            # If we still don't have the TF, return and wait until it's available
+            if self.tf_map_to_ee is None or self.command is None:
+                return
+
+            # Perform replanning
+            self.replan()
+
+            # Set the desired trajectory value
+            for hierarchy in hierarchies:
+                for task in hierarchy:
+                    if isinstance(task, EndEffectorPoseTask):
+                        task.desired_value = self.command.transforms[0]  # type: ignore
 
         # Check whether or not the hierarchies have any set tasks
         has_set_tasks = any(
@@ -421,6 +503,18 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
         joint_angles = np.array(state.joint_state.position[1:][::-1])
         vehicle_pose: Transform = state.multi_dof_joint_state.transforms[0]  # type: ignore # noqa
 
+        try:
+            self.tf_map_to_ee = self.tf_buffer.lookup_transform(
+                self.inertial_frame,
+                self.manipulator_ee_frame,
+                Time(),
+                Duration(nanoseconds=10000000),  # 10 ms
+            )
+        except TransformException as e:
+            self.get_logger().error(
+                f"Unable to lookup the transform from the map to ee frame: {e}"
+            )
+
         for task in self.hierarchy.tasks:
             if isinstance(task, ManipulatorJointLimitTask):
                 joint_angle = joint_angles[task.joint - 6]
@@ -435,12 +529,6 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
             elif isinstance(task, EndEffectorPoseTask):
                 # Get the necessary transforms
                 try:
-                    tf_map_to_ee = self.tf_buffer.lookup_transform(
-                        self.inertial_frame,
-                        self.manipulator_ee_frame,
-                        Time(),
-                        Duration(nanoseconds=10000000),  # 10 ms
-                    )
                     tf_base_to_manipulator_base = self.tf_buffer.lookup_transform(
                         self.base_frame,
                         self.manipulator_base_frame,
@@ -459,9 +547,12 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
                     )
                     continue
 
+                if self.tf_map_to_ee is None:
+                    continue
+
                 task.update(
                     joint_angles,
-                    tf_map_to_ee.transform,
+                    self.tf_map_to_ee.transform,
                     vehicle_pose,
                     tf_base_to_manipulator_base.transform,
                     tf_manipulator_base_to_ee.transform,
