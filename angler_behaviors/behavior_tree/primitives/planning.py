@@ -66,23 +66,25 @@ def make_high_level_planning_behavior(
         request.motion_plan_request.planner_id = planner_id
         return request
 
+    planner_request_key = "high_level_planner_request"
+
     plan_request_behavior = FunctionOfBlackboardVariables(
         name="Make high-level planner request",
         input_keys=[robot_state_key],
-        output_key="high_level_planner_request",
+        output_key=planner_request_key,
         function=make_planning_request,
     )
 
     plan_behavior = FromBlackboard(
-        "Plan a high-level mission",
-        GetMotionPlan,
-        f"/angler/{planner_id}/plan",
-        "high_level_planner_request",
-        planning_result_key,
+        name="Plan a high-level mission",
+        service_type=GetMotionPlan,
+        service_name=f"/angler/{planner_id}/plan",
+        key_request=planner_request_key,
+        key_response=planning_result_key,
     )
 
     return py_trees.composites.Sequence(
-        "Get high-level plan",
+        name="Get high-level plan",
         memory=True,
         children=[plan_request_behavior, plan_behavior],
     )

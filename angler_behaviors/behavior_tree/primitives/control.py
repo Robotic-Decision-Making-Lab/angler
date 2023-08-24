@@ -48,22 +48,24 @@ def make_move_to_end_effector_pose_behavior(
         goal.multi_dof_trajectory.points.append(point)  # type: ignore
         return goal
 
+    desired_ee_pose_key = "desired_end_effector_pose"
+
     get_desired_pose = FunctionOfBlackboardVariables(
-        "Get the desired end-effector pose",
-        [desired_pose_key],
-        "desired_end_effector_pose",
-        make_move_to_pose_goal,
+        name="Get the desired end-effector pose",
+        input_keys=[desired_pose_key],
+        output_key=desired_ee_pose_key,
+        function=make_move_to_pose_goal,
     )
 
     move_to_pose = FromBlackboard(
-        "Move to the desired end-effector pose",
-        FollowJointTrajectory,
-        f"/angler/{controller_id}/execute_trajectory",
-        "desired_end_effector_pose",
+        name="Move to the desired end-effector pose",
+        action_type=FollowJointTrajectory,
+        action_name=f"/angler/{controller_id}/execute_trajectory",
+        key=desired_ee_pose_key,
     )
 
     return py_trees.composites.Sequence(
-        "Move to end-effector pose",
+        name="Move to end-effector pose",
         memory=True,
         children=[get_desired_pose, move_to_pose],
     )
@@ -91,22 +93,24 @@ def make_execute_multidof_trajectory_behavior(
         )
         return goal
 
+    desired_trajectory_key = "desired_trajectory"
+
     get_desired_trajectory = FunctionOfBlackboardVariables(
-        "Get the desired trajectory to track",
-        [trajectory_key],
-        "desired_trajectory",
-        make_follow_trajectory_goal,
+        name="Get the desired trajectory to track",
+        input_keys=[trajectory_key],
+        output_key=desired_trajectory_key,
+        function=make_follow_trajectory_goal,
     )
 
     follow_trajectory = FromBlackboard(
-        "Follow the joint trajectory",
-        FollowJointTrajectory,
-        f"/angler/{controller_id}/execute_trajectory",
-        "desired_trajectory",
+        name="Follow the joint trajectory",
+        action_type=FollowJointTrajectory,
+        action_name=f"/angler/{controller_id}/execute_trajectory",
+        key=desired_trajectory_key,
     )
 
     return py_trees.composites.Sequence(
-        "Load and execute a multi-DOF joint trajectory",
+        name="Load and execute a multi-DOF joint trajectory",
         memory=True,
         children=[get_desired_trajectory, follow_trajectory],
     )

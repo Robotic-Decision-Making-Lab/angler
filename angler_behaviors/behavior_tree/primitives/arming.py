@@ -66,23 +66,26 @@ def make_subsystem_arming_behavior(
     def check_arming_success(response: SetBool.Response) -> bool:
         return response.success
 
+    arm_response_key = "arm_request_response"
+    arm_result_key = "arm_request_result"
+
     arm_request = FromConstant(
         name=f"{subsystem_name}: send arming request",
         service_type=SetBool,
         service_name=arming_topic,
         service_request=SetBool.Request(data=arm),
-        key_response="arm_request_response",
+        key_response=arm_response_key,
     )
     transform_response = FunctionOfBlackboardVariables(
         name=f"{subsystem_name}: transform arming response to bool",
-        input_keys=["arm_request_response"],
-        output_key="arm_request_result",
+        input_keys=[arm_response_key],
+        output_key=arm_result_key,
         function=check_arming_success,
     )
     check_response = py_trees.behaviours.CheckBlackboardVariableValue(
         name=f"{subsystem_name}: verify response",
         check=py_trees.common.ComparisonExpression(
-            variable="arm_request_result",
+            variable=arm_result_key,
             value=True,
             operator=operator.eq,
         ),

@@ -72,14 +72,16 @@ def make_execute_mission_behavior(
         ),
     )
 
+    planning_result_key = "planning_result"
+
     get_mission_plan = make_high_level_planning_behavior(
         robot_state_key=robot_state_key,
         planner_id=planner_id,
-        planning_result_key="planning_result",
+        planning_result_key=planning_result_key,
     )
 
     execute_mission = make_execute_multidof_trajectory_behavior(
-        trajectory_key="planning_result", controller_id=controller_id
+        trajectory_key=planning_result_key, controller_id=controller_id
     )
 
     return py_trees.composites.Sequence(
