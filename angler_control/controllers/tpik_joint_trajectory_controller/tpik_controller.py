@@ -95,10 +95,10 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
         """Create a new TPIK node."""
         super().__init__("tpik_joint_trajectory_controller")
 
+        self.declare_parameter("hierarchy_file", "")
         self.declare_parameters(
-            namespace="",
+            "frames",
             parameters=[  # type: ignore
-                ("hierarchy_file", ""),
                 ("inertial_frame", "map"),
                 ("base_frame", "base_link"),
                 ("manipulator_base_link", "alpha_base_link"),
@@ -112,18 +112,20 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
 
         # Keep track of the frames
         self.inertial_frame = (
-            self.get_parameter("inertial_frame").get_parameter_value().string_value
+            self.get_parameter("frames.inertial_frame")
+            .get_parameter_value()
+            .string_value
         )
         self.base_frame = (
-            self.get_parameter("base_frame").get_parameter_value().string_value
+            self.get_parameter("frames.base_frame").get_parameter_value().string_value
         )
         self.manipulator_base_frame = (
-            self.get_parameter("manipulator_base_link")
+            self.get_parameter("frames.manipulator_base_link")
             .get_parameter_value()
             .string_value
         )
         self.manipulator_ee_frame = (
-            self.get_parameter("manipulator_end_link")
+            self.get_parameter("frames.manipulator_end_link")
             .get_parameter_value()
             .string_value
         )

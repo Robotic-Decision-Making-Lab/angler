@@ -96,5 +96,6 @@ feedback_joint_velocity_trajectory_controller:
 
 tpik:
   ros__parameters:
-    manipulator_base_link: "alpha_base_link"
-    manipulator_end_link: "alpha_standard_jaws_tool"
+    frames:
+      manipulator_base_link: "alpha_base_link"
+      manipulator_end_link: "alpha_standard_jaws_tool"
