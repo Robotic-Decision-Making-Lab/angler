@@ -22,11 +22,11 @@ import py_trees
 import py_trees_ros
 import rclpy
 from behavior_tree.behaviors.cleanup import make_on_mission_complete_behavior
+from behavior_tree.behaviors.configure import make_setup_behavior
 from behavior_tree.behaviors.mission import (
     make_execute_mission_behavior,
     make_save_start_mission_behavior,
 )
-from behavior_tree.behaviors.setup import make_setup_behavior
 from behavior_tree.primitives.arming import (
     make_block_on_disarm_behavior,
     make_save_armed_behavior,

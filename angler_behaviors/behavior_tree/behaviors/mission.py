@@ -29,7 +29,7 @@ from behavior_tree.primitives.planning import make_high_level_planning_behavior
 def make_save_start_mission_behavior(
     start_mission_key: str,
 ) -> py_trees.behaviour.Behaviour:
-    """Make a behavior that saves the 'start mission' flag to the blackboard.
+    """Make a behavior that saves the "start mission" flag to the blackboard.
 
     Args:
         start_mission_key: The key at which the flag should be saved.
@@ -51,7 +51,7 @@ def make_execute_mission_behavior(
     planner_id: str,
     controller_id: str,
 ) -> py_trees.behaviour.Behaviour:
-    """Make a behavior that sets up the system prior to beginning a mission.
+    """Make a behavior that executes a mission.
 
     Args:
         start_mission_key: The key at which the signal indicating that a mission should
