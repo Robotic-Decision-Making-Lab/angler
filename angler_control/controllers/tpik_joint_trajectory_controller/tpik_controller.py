@@ -200,12 +200,12 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
             robot_description: The robot description message.
         """
         end_link = (
-            self.get_parameter("manipulator_end_link")
+            self.get_parameter("frames.manipulator_end_link")
             .get_parameter_value()
             .string_value
         )
         start_link = (
-            self.get_parameter("manipulator_base_link")
+            self.get_parameter("frames.manipulator_base_link")
             .get_parameter_value()
             .string_value
         )
