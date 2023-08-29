@@ -1,3 +1,3 @@
 preplanned_end_effector_waypoint_planner:
   ros__parameters:
-    trajectory_name: "straight"
+    trajectory_name: "forward"

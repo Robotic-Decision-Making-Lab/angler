@@ -1,11 +1,16 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
+
   <name>angler_control</name>
   <version>0.0.1</version>
   <description>A collection of whole-body controllers.</description>
+
   <maintainer email="evanp922@gmail.com">Evan Palmer</maintainer>
   <license>MIT</license>
+
+  <url type="repository">https://github.com/evan-palmer/blue.git</url>
+  <url type="bugtracker">https://github.com/evan-palmer/blue/issues</url>
 
   <depend>python3-scipy</depend>
   <depend>python3-numpy</depend>

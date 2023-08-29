@@ -8,9 +8,6 @@ LABEL maintainer="Evan Palmer"
 LABEL maintainer-email="evanp922@gmail.com"
 
 ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /root/ws_angler
-
-COPY . src/angler
 
 # Install apt packages
 RUN apt-get -q update \
@@ -31,8 +28,52 @@ RUN apt-get -q update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the Python requirements that aren't available as rosdeps
-RUN python3 -m pip install -r $(pwd)/src/angler/requirements-build.txt
+# Configure a new non-root user
+ARG USERNAME=angler
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc
+
+# Install all ROS dependencies for testing
+# Remove the source code from this stage
+WORKDIR /root/ws_angler
+COPY . src/angler
+
+RUN apt-get -q update \
+    && apt-get -q -y upgrade \
+    && rosdep update \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false \
+    && rm -rf src \
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch to the non-root user to install MAVROS dependencies
+USER $USERNAME
+ENV USER=$USERNAME
+
+# Install MAVROS dependencies
+WORKDIR /home/$USERNAME
+RUN wget https://raw.githubusercontent.com/mavlink/mavros/ros2/mavros/scripts/install_geographiclib_datasets.sh \
+    && chmod +x install_geographiclib_datasets.sh \
+    && sudo ./install_geographiclib_datasets.sh
+
+# Switch back to root user
+USER root
+ENV USER=root
+
+##################################################
+# deps: Install all external project dependencies
+##################################################
+FROM ci as deps
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV GZ_VERSION=garden
 
 # Install gstreamer
 RUN apt-get -q update \
@@ -50,70 +91,112 @@ RUN apt-get -q update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install all ROS dependencies
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false \
-    && rm -rf src \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+# Install the Python requirements that aren't available as rosdeps
+COPY requirements-build.txt .
+RUN python3 -m pip install -r requirements-build.txt \
+    && rm -rf requirements-build.txt
 
-# Configure a new non-root user
-ARG USERNAME=angler
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc
-
-# Switch to the non-root user to install MAVROS dependencies
+# Switch to the non-root user
+# We are going to use this for the rest of the installation
 USER $USERNAME
 ENV USER=$USERNAME
 
-# Install MAVROS dependencies
-WORKDIR /home/$USERNAME
-RUN wget https://raw.githubusercontent.com/mavlink/mavros/ros2/mavros/scripts/install_geographiclib_datasets.sh \
-    && chmod +x install_geographiclib_datasets.sh \
-    && sudo ./install_geographiclib_datasets.sh
+# Create a user-level ROS workspace for us to use
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
+WORKDIR $USER_WORKSPACE
 
-# Switch back to root user
-USER root
-ENV USER=root
+# Install the external project requirements
+COPY --chown=$USER_UID:$USER_GID angler.repos src/
+RUN sudo apt-get -q update \
+    && sudo apt-get -q -y upgrade \
+    && vcs import src < src/angler.repos \
+    && rosdep update \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
+    # Install custom version of kinpy
+    && cd src/kinpy \
+    && python3 -m pip install . \
+    && cd ../.. \
+    && rm -rf angler.repos \
+    && sudo apt-get autoremove -y \
+    && sudo apt-get clean -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
+    && colcon build \
+    # Update .bashrc to source the workspace
+    && echo "source ${USER_WORKSPACE}/install/setup.sh" >> /home/$USERNAME/.bashrc
+
+# Now install any remaining Angler rosdeps
+COPY --chown=$USER_UID:$USER_GID . src/angler
+RUN sudo apt-get -q update \
+    && sudo apt-get -q -y upgrade \
+    && rosdep update \
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
+    && rm -rf src/angler \
+    && sudo apt-get autoremove -y \
+    && sudo apt-get clean -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# Install development tools for testing from the command line
+# We install this here so that we can use it in the source and develop stages
+RUN sudo apt-get -q update \
+    && sudo apt-get -q -y upgrade \
+    && sudo apt-get -q install --no-install-recommends -y \
+    iputils-ping \
+    net-tools \
+    gdb \
+    nano \
+    htop \
+    && sudo apt-get autoremove -y \
+    && sudo apt-get clean -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+##############################################################
+# robot: Minimal installation needed for operation on a robot
+##############################################################
+FROM deps as robot
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
+WORKDIR $USER_WORKSPACE
+
+# Get the source code and build
+# We don't need to update the .bashrc file this time, that was
+# done in the previous stage
+COPY --chown=$USER_UID:$USER_GID . src/angler
+RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
+    && colcon build \
+    && . "install/setup.sh"
+
 
 #################################################################
 # sim: install Gazebo and the tools needed for Gazebo simulation
 #################################################################
-FROM ci as sim
+FROM deps as sim
+# Inspiration for this stage comes from the following source
+# https://github.com/clydemcqueen/orca4/blob/77152829e1d65781717ca55379c229145d6006e9/docker/Dockerfile#L1
 
 # Install Gazebo Garden: https://gazebosim.org/docs/garden/install_ubuntu
-RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-RUN apt-get update \
-    && apt-get -y --quiet --no-install-recommends install \
-    gz-garden \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+RUN sudo wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
+    && sudo apt-get update \
+    && sudo apt-get -y --quiet --no-install-recommends install gz-garden \
+    && sudo apt-get autoremove -y \
+    && sudo apt-get clean -y \
+    && sudo rm -rf /var/lib/apt/lists/*
 
 # Install ArduPilot and ardupilot_gazebo dependencies
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && apt-get -q install --no-install-recommends -y \
+RUN sudo apt-get -q update \
+    && sudo apt-get -q -y upgrade \
+    && sudo apt-get -q install --no-install-recommends -y \
     python3-wxgtk4.0 \
     rapidjson-dev \
     xterm \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# Switch to the non-root user to install ArduSub
-USER $USERNAME
-ENV USER=$USERNAME
+    && sudo apt-get autoremove -y \
+    && sudo apt-get clean -y \
+    && sudo rm -rf /var/lib/apt/lists/*
 
 # Clone ArduSub
 # ArduSub is installed for simulation purposes ONLY
@@ -144,151 +227,82 @@ RUN [ "/bin/bash" , "-c" , " \
     && cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     && make -j4" ]
 
-# Switch back to the root user
-USER root
-ENV USER=root
-
-# Extend the ros_entrypoint to source the simulation environment
-COPY .docker/entrypoints/sim.sh /
-RUN sed -i '/source "\/opt\/ros\/$ROS_DISTRO\/setup\.bash" --/a source /sim.sh' /ros_entrypoint.sh
-
-##################################################
-# deps: Install all external project dependencies
-##################################################
-FROM sim as deps
-
-ENV GZ_VERSION=garden
-ENV USER_WORKSPACE=/home/$USERNAME/ws_angler/install
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR $USER_WORKSPACE/..
-
-COPY angler.repos src/
-
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && vcs import src < src/angler.repos \
+# Install the external simulation packages
+# Most of these dependencies should go away in the future, but they exist
+# now because they are either buggy or need to be built from source to support
+# Gazebo Garden
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler/
+WORKDIR $USER_WORKSPACE
+COPY sim.repos src/
+RUN sudo apt-get -q update \
+    && sudo apt-get -q -y upgrade \
+    && vcs import src < src/sim.repos \
     && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
+    && sudo apt-get autoremove -y \
+    && sudo apt-get clean -y \
+    && sudo rm -rf /var/lib/apt/lists/*
 
+# Build the external simulation packages
 RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
     && colcon build \
-    # Update /ros_entrypoint.sh to source the workspace
-    && sed -i "s#/opt/ros/\$ROS_DISTRO/setup.bash#$USER_WORKSPACE/setup.sh#g" /ros_entrypoint.sh \
-    && echo "source ${USER_WORKSPACE}/setup.sh" >> /home/$USERNAME/.bashrc
+    && . "install/setup.sh"
+
+# Setup the environment variables needed for simulation
+COPY .docker/entrypoints/sim.sh /
+RUN echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc
+
 
 ####################################################
 # develop: Setup the image for development purposes
 ####################################################
-FROM deps as develop
+FROM sim as develop
 
-ENV GZ_VERSION=garden
-ENV ROS_UNDERLAY /root/ws_angler/install
 ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR $ROS_UNDERLAY/..
-
-COPY . src/angler
 
 # Install debugging/linting Python packages
-RUN python3 -m pip install -r $(pwd)/src/angler/requirements-dev.txt
+WORKDIR /home/$USERNAME
+COPY requirements-dev.txt .
+RUN python3 -m pip install -r requirements-dev.txt \
+    && rm -rf requirements-dev.txt
 
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && vcs import src < src/angler/angler.repos \
-    && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
-    && rm -rf src \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install development tools
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && apt-get -q install --no-install-recommends -y \
-    iputils-ping \
-    net-tools \
-    gdb \
-    nano \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
-
+# Set up the development environment
 COPY .docker/entrypoints/dev.sh /
+RUN echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
 
 # WARNING: This is a temporary solution for disabling the setuputils installation warning
 ENV PYTHONWARNINGS="ignore"
 
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    # Expose the environment variables to the non-root user
-    && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
 
 
 ######################################################################################
 # develop-nvidia: Setup the image for development purposes with NVIDIA driver support
 ######################################################################################
-FROM deps as develop-nvidia
+FROM sim as develop-nvidia
 
-# Install NVIDIA software
-RUN apt-get update \
-    && apt-get install -y -qq --no-install-recommends \
-    libglvnd0 \
-    libgl1 \
-    libglx0 \
-    libegl1 \
-    libxext6 \
-    libx11-6
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Env vars for the nvidia-container-runtime.
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 ENV QT_X11_NO_MITSHM 1
 
-ENV GZ_VERSION=garden
-ENV ROS_UNDERLAY /root/ws_angler/install
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR $ROS_UNDERLAY/..
-
-COPY . src/angler
-
 # Install debugging/linting Python packages
-RUN python3 -m pip install -r $(pwd)/src/angler/requirements-dev.txt
+WORKDIR /home/$USERNAME
+COPY requirements-dev.txt .
+RUN python3 -m pip install -r requirements-dev.txt \
+    && rm -rf requirements-dev.txt
 
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && vcs import src < src/angler/angler.repos \
-    && rosdep update \
-    && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} --as-root=apt:false --skip-keys="gz-transport12 gz-sim7 gz-math7 gz-msgs9 gz-plugin2" \
-    && rm -rf src \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install development tools
-RUN apt-get -q update \
-    && apt-get -q -y upgrade \
-    && apt-get -q install --no-install-recommends -y \
-    iputils-ping \
-    net-tools \
-    gdb \
-    nano \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
-
+# Set up the development environment
 COPY .docker/entrypoints/dev.sh /
+RUN echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
 
 # WARNING: This is a temporary solution for disabling the setuputils installation warning
 ENV PYTHONWARNINGS="ignore"
 
 ARG WORKSPACE
 RUN echo "if [ -f ${WORKSPACE}/install/setup.bash ]; then source ${WORKSPACE}/install/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc \
-    # Expose the environment variables to the non-root user
-    && echo "if [ -f /sim.sh ]; then source /sim.sh; fi" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /dev.sh ]; then source /dev.sh; fi" >> /home/$USERNAME/.bashrc
+    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc

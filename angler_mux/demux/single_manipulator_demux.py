@@ -37,9 +37,12 @@ class SingleManipulatorVelocityDemux(Node):
         """Create a new demuxer for the vehicle and a manipulator."""
         super().__init__("single_manipulator_velocity_demux")
 
-        self.declare_parameter("vehicle_control_topic", "/blue/ismc/cmd_vel")
-        self.declare_parameter(
-            "manipulator_control_topic", "/forward_velocity_controller/commands"
+        self.declare_parameters(
+            namespace="",
+            parameters=[  # type: ignore
+                ("vehicle_control_topic", "/blue/ismc/cmd_vel"),
+                ("manipulator_control_topic", "/forward_velocity_controller/commands"),
+            ],
         )
 
         vehicle_control_topic = (

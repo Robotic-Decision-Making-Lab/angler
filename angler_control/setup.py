@@ -43,7 +43,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "tpik = inverse_kinematic_controllers.tpik.controller:main",
+            "tpik_joint_trajectory_controller = controllers.tpik_joint_trajectory_controller.tpik_controller:main",  # noqa
         ],
     },
 )

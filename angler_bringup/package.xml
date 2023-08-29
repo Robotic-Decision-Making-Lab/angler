@@ -14,17 +14,17 @@
 
   <author>Evan Palmer</author>
 
-  <exec_depend>mavros</exec_depend>
-  <exec_depend>mavros_extras</exec_depend>
-
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
+  <exec_depend>mavros</exec_depend>
+  <exec_depend>mavros_extras</exec_depend>
   <exec_depend>hardware_interface</exec_depend>
   <exec_depend>velocity_controllers</exec_depend>
   <exec_depend>xacro</exec_depend>
+  <exec_depend>foxglove_bridge</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -10,17 +10,12 @@ repositories:
     url: https://github.com/evan-palmer/blue.git
     version: main
 
-  ros_gz:
+  kinpy:
     type: git
-    url: https://github.com/gazebosim/ros_gz
-    version: ros2
+    url: https://github.com/evan-palmer/kinpy.git
+    version: master
 
-  gz-plugin:
+  py_trees_ros_viewer:
     type: git
-    url: https://github.com/gazebosim/gz-plugin.git
-    version: gz-plugin2
-
-  gz_ros2_control:
-    type: git
-    url: https://github.com/evan-palmer/gz_ros2_control.git
-    version: patch-rolling-garden
+    url: https://github.com/splintered-reality/py_trees_ros_viewer.git
+    version: devel

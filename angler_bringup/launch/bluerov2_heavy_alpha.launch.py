@@ -211,9 +211,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "whole_body_controller",
-            default_value="tpik",
+            default_value="tpik_joint_trajectory_controller",
             description="The whole-body controller to load.",
-            choices=["tpik"],
+            choices=["tpik_joint_trajectory_controller"],
         ),
     ]
 
@@ -252,7 +252,7 @@ def generate_launch_description() -> LaunchDescription:
         namespace=namespace,
         parameters=[
             controllers_file,
-            {"use_sim_time": use_sim, "robot_description": robot_description},
+            {"use_sim_time": use_sim},
         ],
         condition=UnlessCondition(use_sim),
     )
@@ -311,7 +311,11 @@ def generate_launch_description() -> LaunchDescription:
         ),
         # We need to wait for the Gazebo spawner to finish, but
         # don't have access to that because it is called from blue
-        TimerAction(period=2.0, actions=[joint_state_broadcaster_spawner]),
+        TimerAction(
+            period=2.0,
+            actions=[joint_state_broadcaster_spawner],
+            condition=IfCondition(use_sim),
+        ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster_spawner, on_exit=[rviz]
@@ -323,14 +327,6 @@ def generate_launch_description() -> LaunchDescription:
                 target_action=joint_state_broadcaster_spawner,
                 on_exit=[alpha_controller_spawner],
             )
-        ),
-        Node(
-            package="robot_state_publisher",
-            executable="robot_state_publisher",
-            output="both",
-            parameters=[
-                {"use_sim_time": use_sim, "robot_description": robot_description}
-            ],
         ),
         Node(
             package="angler_utils",
@@ -354,24 +350,6 @@ def generate_launch_description() -> LaunchDescription:
                     ]
                 )
             ),
-        ),
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            name="base_link_to_base_footprint",
-            arguments=[
-                "--x",
-                "-0.0",
-                "--y",
-                "0.0",
-                "--z",
-                "0.0",
-                "--frame-id",
-                ["base_link"],
-                "--child-frame-id",
-                ["base_footprint"],
-            ],
-            output="screen",
         ),
     ]
 
@@ -444,6 +422,14 @@ def generate_launch_description() -> LaunchDescription:
                 "use_sim_time": use_sim,
             }.items(),
             condition=IfCondition(LaunchConfiguration("use_whole_body_control")),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution(
+                    [FindPackageShare("angler_behaviors"), "behavior_tree.launch.py"]
+                )
+            ),
+            launch_arguments={"use_sim_time": use_sim}.items(),
         ),
     ]
 
