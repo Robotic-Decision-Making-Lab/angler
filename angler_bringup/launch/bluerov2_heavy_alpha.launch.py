@@ -329,7 +329,7 @@ def generate_launch_description() -> LaunchDescription:
             )
         ),
         Node(
-            package="angler_utils",
+            package="angler_common",
             executable="initial_position_setter",
             name="initial_position_setter",
             parameters=[

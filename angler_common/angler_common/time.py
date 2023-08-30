@@ -18,11 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import numpy as np
 from builtin_interfaces.msg import Duration as DurationMsg
-from geometry_msgs.msg import Transform, Twist
 from rclpy.time import Time
-from scipy.spatial.transform import Rotation as R
 
 
 def add_ros_time_duration_msg(time: Time, duration: DurationMsg) -> Time:
@@ -38,45 +35,4 @@ def add_ros_time_duration_msg(time: Time, duration: DurationMsg) -> Time:
     duration_nanoseconds = duration.sec * 10**9 + duration.nanosec
     return Time(
         nanoseconds=time.nanoseconds + duration_nanoseconds, clock_type=time.clock_type
-    )
-
-
-def convert_tf_to_array(tf: Transform) -> np.ndarray:
-    """Convert a Transform message to a numpy array.
-
-    Args:
-        tf: The transform to convert.
-
-    Returns:
-        The resulting numpy array.
-    """
-    return np.array(
-        [
-            tf.translation.x,
-            tf.translation.y,
-            tf.translation.z,
-            *R.from_quat(
-                [tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w]
-            ).as_euler("xyz"),
-        ]
-    )
-
-
-def convert_twist_to_array(twist: Twist) -> np.ndarray:
-    """Convert a Twist message to a numpy array.
-
-    Args:
-        twist: The twist to convert.
-
-    Returns:
-        The resulting numpy array.
-    """
-    return np.array(
-        [
-            twist.linear.x,
-            twist.linear.y,
-            twist.linear.z,
-            twist.angular.x,
-            twist.angular.z,
-        ]
     )

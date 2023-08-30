@@ -21,16 +21,17 @@
 import threading
 from abc import abstractmethod
 
-import controllers.robot_trajectory_controller.utils as controller_utils
 import numpy as np
 from control_msgs.action import FollowJointTrajectory
 from controllers.controller import BaseController
 from controllers.robot_trajectory_controller.trajectory import MultiDOFTrajectory
-from geometry_msgs.msg import Quaternion
 from rclpy.action import ActionServer, GoalResponse
 from rclpy.action.server import ServerGoalHandle
 from rclpy.time import Duration
 from trajectory_msgs.msg import MultiDOFJointTrajectoryPoint
+
+import angler_common.conversions as angler_conversions  # type: ignore
+import angler_common.time as angler_time  # type: ignore
 
 
 class BaseMultiDOFJointTrajectoryController(BaseController):
@@ -144,10 +145,10 @@ class BaseMultiDOFJointTrajectoryController(BaseController):
         Returns:
             Whether or not the joint is at its goal.
         """
-        current_pos = controller_utils.convert_tf_to_array(
+        current_pos = angler_conversions.tf_to_numpy(
             current_state.transforms[index]  # type: ignore
         )
-        desired_pos = controller_utils.convert_tf_to_array(
+        desired_pos = angler_conversions.tf_to_numpy(
             desired_state.transforms[index]  # type: ignore
         )
 
@@ -156,13 +157,10 @@ class BaseMultiDOFJointTrajectoryController(BaseController):
             < self.goal_position_tolerance
         )
 
-        def quat_to_array(quat: Quaternion):
-            return np.array([quat.x, quat.y, quat.z, quat.w])
-
-        current_rot = quat_to_array(
+        current_rot = angler_conversions.quaternion_to_numpy(
             current_state.transforms[index].rotation  # type: ignore
         )
-        desired_rot = quat_to_array(
+        desired_rot = angler_conversions.quaternion_to_numpy(
             desired_state.transforms[index].rotation  # type: ignore
         )
 
@@ -180,10 +178,10 @@ class BaseMultiDOFJointTrajectoryController(BaseController):
             self.trajectory.trajectory.points[0].velocities  # type: ignore
             and self.trajectory.trajectory.points[-1].velocities  # type: ignore
         ):
-            current_vel = controller_utils.convert_twist_to_array(
+            current_vel = angler_conversions.twist_to_numpy(
                 current_state.velocities[index]  # type: ignore
             )
-            desired_vel = controller_utils.convert_twist_to_array(
+            desired_vel = angler_conversions.twist_to_numpy(
                 desired_state.velocities[index]  # type: ignore
             )
 
@@ -258,7 +256,7 @@ class BaseMultiDOFJointTrajectoryController(BaseController):
                     goal_handle.abort()
                     return result
 
-                end_goal_time = controller_utils.add_ros_time_duration_msg(
+                end_goal_time = angler_time.add_ros_time_duration_msg(
                     self.trajectory.starting_time,
                     self.trajectory.trajectory.points[-1].time_from_start,  # type: ignore # noqa
                 )

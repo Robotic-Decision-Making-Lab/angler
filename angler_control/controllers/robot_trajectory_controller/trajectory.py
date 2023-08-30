@@ -18,13 +18,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import controllers.robot_trajectory_controller.utils as controller_utils
 import numpy as np
 from geometry_msgs.msg import Transform, Twist
 from rclpy.time import Duration, Time
 from scipy.interpolate import CubicHermiteSpline, interp1d
 from scipy.spatial.transform import Rotation as R
 from trajectory_msgs.msg import MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
+
+import angler_common.conversions as angler_conversions  # type: ignore
+import angler_common.time as angler_time  # type: ignore
 
 
 class MultiDOFTrajectory:
@@ -70,7 +72,7 @@ class MultiDOFTrajectory:
             return None
 
         first_point = self.trajectory.points[0]  # type: ignore
-        first_point_timestamp = controller_utils.add_ros_time_duration_msg(
+        first_point_timestamp = angler_time.add_ros_time_duration_msg(
             self.starting_time, first_point.time_from_start
         )
 
@@ -87,10 +89,10 @@ class MultiDOFTrajectory:
             point = self.trajectory.points[i]  # type: ignore
             next_point = self.trajectory.points[i + 1]  # type: ignore
 
-            t0 = controller_utils.add_ros_time_duration_msg(
+            t0 = angler_time.add_ros_time_duration_msg(
                 self.starting_time, point.time_from_start
             )
-            t1 = controller_utils.add_ros_time_duration_msg(
+            t1 = angler_time.add_ros_time_duration_msg(
                 self.starting_time, next_point.time_from_start
             )
 
@@ -153,8 +155,8 @@ class MultiDOFTrajectory:
 
                 tfs = np.array(
                     [
-                        controller_utils.convert_tf_to_array(start_tf),
-                        controller_utils.convert_tf_to_array(end_tf),
+                        angler_conversions.tf_to_numpy(start_tf),
+                        angler_conversions.tf_to_numpy(end_tf),
                     ]
                 ).T
                 t = np.array([start_time.nanoseconds, end_time.nanoseconds])
@@ -192,14 +194,14 @@ class MultiDOFTrajectory:
 
                 tfs = np.array(
                     [
-                        controller_utils.convert_tf_to_array(start_tf),
-                        controller_utils.convert_tf_to_array(end_tf),
+                        angler_conversions.tf_to_numpy(start_tf),
+                        angler_conversions.tf_to_numpy(end_tf),
                     ]
                 )
                 vels = np.array(
                     [
-                        controller_utils.convert_twist_to_array(start_vel),
-                        controller_utils.convert_twist_to_array(end_vel),
+                        angler_conversions.twist_to_numpy(start_vel),
+                        angler_conversions.twist_to_numpy(end_vel),
                     ]
                 )
                 t = np.array([start_time.nanoseconds, end_time.nanoseconds])
