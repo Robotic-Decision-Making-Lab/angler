@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - main
+      - develop
+      - 26-feature-implement-joystick-support-1
   pull_request:
     paths:
       - .docker/**
