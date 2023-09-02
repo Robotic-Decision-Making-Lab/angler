@@ -127,7 +127,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "use_fake_hardware",
-            default_value="true",
+            default_value="false",
             description=(
                 "Start the Reach Alpha 5 driver using fake hardware mirroring command"
                 " to its states. If this is set to 'false', the Alpha 5 manipulator"
@@ -169,7 +169,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             "localization_source",
             default_value="gazebo",
-            choices=["mocap", "camera", "gazebo"],
+            choices=["mocap", "camera", "gazebo", "hinsdale"],
             description="The localization source to stream from.",
         ),
         DeclareLaunchArgument(
@@ -197,6 +197,9 @@ def generate_launch_description() -> LaunchDescription:
             "use_whole_body_control",
             default_value="true",
             description="Load a whole-body controller.",
+        ),
+        DeclareLaunchArgument(
+            "use_joy", default_value="true", description="Use a joystick controller."
         ),
         DeclareLaunchArgument(
             "gazebo_world_file",
@@ -252,7 +255,9 @@ def generate_launch_description() -> LaunchDescription:
         namespace=namespace,
         parameters=[
             controllers_file,
-            {"use_sim_time": use_sim},
+            {"use_sim_time": use_sim,
+             "robot_description": robot_description,
+            },
         ],
         condition=UnlessCondition(use_sim),
     )
@@ -302,25 +307,11 @@ def generate_launch_description() -> LaunchDescription:
 
     nodes = [
         control_node,
-        rviz,
         RegisterEventHandler(
             event_handler=OnProcessStart(
                 target_action=control_node,
                 on_start=[joint_state_broadcaster_spawner],
             )
-        ),
-        # We need to wait for the Gazebo spawner to finish, but
-        # don't have access to that because it is called from blue
-        TimerAction(
-            period=2.0,
-            actions=[joint_state_broadcaster_spawner],
-            condition=IfCondition(use_sim),
-        ),
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=joint_state_broadcaster_spawner, on_exit=[rviz]
-            ),
-            condition=IfCondition(use_rviz),
         ),
         RegisterEventHandler(
             event_handler=OnProcessExit(
@@ -353,6 +344,12 @@ def generate_launch_description() -> LaunchDescription:
         ),
     ]
 
+    launch_tree = TimerAction(
+        period=20.0,
+        actions=[joint_state_broadcaster_spawner],
+        condition=IfCondition(use_sim),
+    ),
+
     includes = [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
@@ -369,6 +366,7 @@ def generate_launch_description() -> LaunchDescription:
                 "use_mocap": LaunchConfiguration("use_mocap"),
                 "use_sim": LaunchConfiguration("use_sim"),
                 "use_rviz": "false",  # Use our own version
+                "use_joy": LaunchConfiguration("use_joy"),
                 "gazebo_world_file": LaunchConfiguration("gazebo_world_file"),
                 "prefix": LaunchConfiguration("prefix"),
                 "robot_description": robot_description,
@@ -423,14 +421,14 @@ def generate_launch_description() -> LaunchDescription:
             }.items(),
             condition=IfCondition(LaunchConfiguration("use_whole_body_control")),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [FindPackageShare("angler_behaviors"), "behavior_tree.launch.py"]
-                )
-            ),
-            launch_arguments={"use_sim_time": use_sim}.items(),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         PathJoinSubstitution(
+        #             [FindPackageShare("angler_behaviors"), "behavior_tree.launch.py"]
+        #         )
+        #     ),
+        #     launch_arguments={"use_sim_time": use_sim}.items(),
+        # ),
     ]
 
     return LaunchDescription(args + nodes + includes)

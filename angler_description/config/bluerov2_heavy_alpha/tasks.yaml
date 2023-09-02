@@ -24,9 +24,9 @@
   gain: 0.3
   # Set the initial position to move to
   # when the controller is armed
-  x: 0.0
-  y: 0.0
-  z: -1.0
+  x: 0.775
+  y: 0.415
+  z: 0.316
   roll: 0.0
   pitch: 0.0
   yaw: 0.0

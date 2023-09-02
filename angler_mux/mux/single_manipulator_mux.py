@@ -45,7 +45,7 @@ class SingleManipulatorMux(Node):
         self.vehicle_state_sub = Subscriber(
             self,
             Odometry,
-            "/mavros/local_position/odom",
+            "/blue/local_position/odom",
             qos_profile=qos_profile_sensor_data,
         )
         self.manipulator_state_sub = Subscriber(
@@ -59,7 +59,7 @@ class SingleManipulatorMux(Node):
 
         # Create a message filter to synchronize state messages
         self.ts = ApproximateTimeSynchronizer(
-            [self.vehicle_state_sub, self.manipulator_state_sub], 1, 0.05
+            [self.vehicle_state_sub, self.manipulator_state_sub], 10, 0.5
         )
 
         self.ts.registerCallback(self.update_robot_state_cb)

@@ -4,22 +4,9 @@ mavros:
     plugin_allowlist:
       - sys_status
       - command
-      - imu
-      - local_position
       - rc_io
       - param
-      - vision_pose
 
 mavros_node:
   ros__parameters:
-    fcu_url: "tcp://localhost"
-    gcs_url: "udp://@localhost:14550"
-
-mavros/local_position:
-  ros__parameters:
-    frame_id: "map"
-    tf:
-      send: false
-      frame_id: "map"
-      child_frame_id: "base_link"
-      send_fcu: false
+    fcu_url: "udp://:14755@0.0.0.0:14755"
