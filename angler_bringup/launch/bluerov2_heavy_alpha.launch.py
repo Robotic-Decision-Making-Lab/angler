@@ -23,7 +23,6 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
     RegisterEventHandler,
-    TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
@@ -222,7 +221,6 @@ def generate_launch_description() -> LaunchDescription:
 
     use_sim = LaunchConfiguration("use_sim")
     namespace = LaunchConfiguration("namespace")
-    use_rviz = LaunchConfiguration("use_rviz")
     alpha_controller = LaunchConfiguration("alpha_controller")
 
     robot_description = Command(
@@ -255,8 +253,9 @@ def generate_launch_description() -> LaunchDescription:
         namespace=namespace,
         parameters=[
             controllers_file,
-            {"use_sim_time": use_sim,
-             "robot_description": robot_description,
+            {
+                "use_sim_time": use_sim,
+                "robot_description": robot_description,
             },
         ],
         condition=UnlessCondition(use_sim),
@@ -284,25 +283,6 @@ def generate_launch_description() -> LaunchDescription:
             [namespace, "controller_manager"],
         ],
         parameters=[{"use_sim_time": use_sim}],
-    )
-
-    rviz = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="both",
-        arguments=[
-            "-d",
-            PathJoinSubstitution(
-                [
-                    FindPackageShare(description_package),
-                    "rviz",
-                    LaunchConfiguration("rviz_config"),
-                ]
-            ),
-        ],
-        parameters=[{"use_sim_time": use_sim, "robot_description": robot_description}],
-        condition=IfCondition(use_rviz),
     )
 
     nodes = [
@@ -344,12 +324,6 @@ def generate_launch_description() -> LaunchDescription:
         ),
     ]
 
-    launch_tree = TimerAction(
-        period=20.0,
-        actions=[joint_state_broadcaster_spawner],
-        condition=IfCondition(use_sim),
-    ),
-
     includes = [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
@@ -371,19 +345,6 @@ def generate_launch_description() -> LaunchDescription:
                 "prefix": LaunchConfiguration("prefix"),
                 "robot_description": robot_description,
             }.items(),
-        ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution(
-                    [
-                        FindPackageShare("blue_bringup"),
-                        "launch",
-                        "bluerov2_heavy_reach",
-                        "tf.launch.py",
-                    ]
-                )
-            ),
-            launch_arguments={"prefix": LaunchConfiguration("prefix")}.items(),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
