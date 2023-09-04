@@ -1,9 +1,9 @@
 ismc:
   ros__parameters:
-    mass: 13.5
-    buoyancy: 112.80
+    mass: 16.2
+    buoyancy: 116.80
     weight: 114.80
-    inertia_tensor_coeff: [0.16, 0.16, 0.16]
+    inertia_tensor_coeff: [0.24, 0.2, 0.4]
     added_mass_coeff: [-5.50, -12.70, -14.60, -0.12, -0.12, -0.12]
     linear_damping_coeff: [-4.03, -6.22, -5.18, -0.07, -0.07, -0.07]
     quadratic_damping_coeff: [-18.18, -21.66, -36.99, -1.55, -1.55, -1.55]
@@ -17,14 +17,14 @@ ismc:
               0.0,    0.0,     0.0,    0.0, -0.21805, -0.21805, 0.21805, 0.21805,
               0.0,    0.0,     0.0,    0.0,    -0.12,     0.12,   -0.12,    0.12,
           -0.1888, 0.1888, -0.1888, 0.1888,      0.0,      0.0,    0.0 ,     0.0]
-    control_rate: 100.0
-    proportional_gain: [5.0, 5.0, 8.0, 3.0, 3.0, 10.0]
-    sliding_gain: 15.0
+    control_rate: 50.0
+    proportional_gain: [4.0, 4.0, 9.0, 3.0, 3.0, 7.0]
+    sliding_gain: 20.0
     boundary_thickness: 200.0
 
 controller_manager:
   ros__parameters:
-    update_rate: 50 # Hz
+    update_rate: 30 # Hz
 
     forward_velocity_controller:
       type: forward_command_controller/ForwardCommandController
@@ -94,3 +94,4 @@ tpik:
     frames:
       manipulator_base_link: "alpha_base_link"
       manipulator_end_link: "alpha_standard_jaws_tool"
+    control_rate: 30

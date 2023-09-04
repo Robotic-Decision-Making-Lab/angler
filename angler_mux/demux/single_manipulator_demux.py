@@ -71,6 +71,7 @@ class SingleManipulatorVelocityDemux(Node):
         Args:
             cmd: The robot control command.
         """
+
         # Proxy the vehicle velocity command
         self.vehicle_cmd_pub.publish(
             cmd.multi_dof_joint_trajectory.points[0].velocities[0]  # type: ignore

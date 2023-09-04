@@ -35,6 +35,7 @@ from controllers.tpik_joint_trajectory_controller.tasks import (
     ManipulatorJointLimitTask,
     VehicleRollPitchTask,
     VehicleYawTask,
+    EndEffectorPosition,
 )
 from geometry_msgs.msg import Transform, Twist
 from moveit_msgs.msg import RobotState, RobotTrajectory
@@ -150,6 +151,9 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
         # Publishers
         self.robot_trajectory_pub = self.create_publisher(
             RobotTrajectory, "/angler/robot_trajectory", 1
+        )
+        self.ee_tracking_error_pub = self.create_publisher(
+            Transform, "/angler/ee_tracking_error", 1
         )
 
     @property
@@ -297,7 +301,7 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
         # Set the desired trajectory value
         for hierarchy in hierarchies:
             for task in hierarchy:
-                if isinstance(task, EndEffectorPoseTask) and self.command is not None:
+                if (isinstance(task, EndEffectorPoseTask) or isinstance(task, EndEffectorPosition)) and self.command is not None:
                     task.desired_value = self.command.transforms[0]  # type: ignore
 
         # Check whether or not the hierarchies have any set tasks
@@ -434,7 +438,7 @@ class TpikController(BaseMultiDOFJointTrajectoryController):
                 task.update(joint_angles.reshape((len(joint_angles), 1)))
             elif isinstance(task, VehicleYawTask):
                 task.update(vehicle_pose.rotation)
-            elif isinstance(task, EndEffectorPoseTask):
+            elif isinstance(task, EndEffectorPoseTask) or isinstance(task, EndEffectorPosition):
                 # Get the necessary transforms
                 try:
                     tf_map_to_ee = self.tf_buffer.lookup_transform(

@@ -87,12 +87,12 @@ def generate_launch_description() -> LaunchDescription:
             "mux.yaml",
         ]
     )
-    initial_positions_file = PathJoinSubstitution(
+    joy_file = PathJoinSubstitution(
         [
             FindPackageShare(description_package),
             "config",
             configuration_type,
-            "initial_positions.yaml",
+            "mux.yaml",
         ]
     )
 
@@ -298,29 +298,6 @@ def generate_launch_description() -> LaunchDescription:
                 target_action=joint_state_broadcaster_spawner,
                 on_exit=[alpha_controller_spawner],
             )
-        ),
-        Node(
-            package="angler_common",
-            executable="initial_position_setter",
-            name="initial_position_setter",
-            parameters=[
-                {
-                    "initial_positions_file": initial_positions_file,
-                    "controller_cmd_topic": "/forward_velocity_controller/commands",
-                    "use_sim_time": use_sim,
-                }
-            ],
-            condition=IfCondition(
-                PythonExpression(
-                    [
-                        "'",
-                        use_sim,
-                        "' == 'true' and '",
-                        alpha_controller,
-                        "' == 'forward_velocity_controller'",
-                    ]
-                )
-            ),
         ),
     ]
 

@@ -21,7 +21,7 @@
 from abc import ABC, abstractmethod
 
 from moveit_msgs.msg import RobotState
-from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from std_srvs.srv import SetBool
@@ -49,7 +49,7 @@ class BaseController(ABC, Node):
 
         # Services
         self.arm_controller_srv = self.create_service(
-            SetBool, "/angler/cmd/arm", self.arm_controller_cb
+            SetBool, "/angler/cmd/arm", self.arm_controller_cb, callback_group=ReentrantCallbackGroup()
         )
 
         # Subscribers
@@ -60,10 +60,7 @@ class BaseController(ABC, Node):
             qos_profile=qos_profile_sensor_data,
         )
 
-        # Create a new callback group for the control loop timer
-        # Don't start it automatically though.
-        self.timer_cb_group = ReentrantCallbackGroup()
-        self.control_loop_timer = self.create_timer(self.dt, self._update)
+        self.control_loop_timer = self.create_timer(self.dt, self._update, MutuallyExclusiveCallbackGroup())
 
     def on_robot_state_update(self, state: RobotState) -> None:
         """Execute this function on robot state update.
@@ -142,6 +139,7 @@ class BaseController(ABC, Node):
                 + ("arm" if request.data else "disarm")
                 + " the Angler controller!"
             )
+            self.get_logger().warning(response.message)
         else:
             response.success = True
             response.message = (
@@ -149,5 +147,6 @@ class BaseController(ABC, Node):
                 + ("armed" if self.armed else "disarmed")
                 + " the Angler controller!"
             )
+            self.get_logger().info(response.message)
 
         return response

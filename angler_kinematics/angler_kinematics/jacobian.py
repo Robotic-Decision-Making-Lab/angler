@@ -160,6 +160,40 @@ def calculate_vehicle_orientation_jacobian(rot_base_to_map: Quaternion) -> np.nd
 
     return J
 
+def calculate_ee_position_jacobian(
+    tf_base_to_manipulator_base: Transform,
+    tf_manipulator_base_to_ee: Transform,
+    tf_map_to_base: Transform,
+    n_manipulator_joints: int,
+    serial_chain: Any,
+    joint_angles: np.ndarray,
+) -> np.ndarray:
+    # Get the transformation translations
+    # denoted as r_{from frame}{to frame}_{with respect to x frame}
+    r_B0_B = point_to_array(tf_base_to_manipulator_base.translation)
+    eta_0ee_0 = point_to_array(tf_manipulator_base_to_ee.translation)
+
+    # Get the transformation rotations
+    # denoted as R_{from frame}_{to frame}
+    R_0_B = np.linalg.inv(
+        quaternion_to_rotation(tf_base_to_manipulator_base.rotation).as_matrix()
+    )
+    R_B_I = np.linalg.inv(quaternion_to_rotation(tf_map_to_base.rotation).as_matrix())
+    R_0_I = R_B_I @ R_0_B
+
+    r_B0_I = R_B_I @ r_B0_B
+    eta_0ee_I = R_0_I @ eta_0ee_0
+
+    J = np.zeros((3, 6 + n_manipulator_joints))
+    J_man = calculate_manipulator_jacobian(serial_chain, joint_angles)
+
+    # Position Jacobian
+    J[:3, :3] = R_B_I
+    J[:3, 3:6] = -(get_skew_matrix(r_B0_I) + get_skew_matrix(eta_0ee_I)) @ R_B_I  # type: ignore # noqa
+    J[:3, 6:] = R_0_I @ J_man[:3]
+
+    return J
+
 
 def calculate_uvms_jacobian(
     tf_base_to_manipulator_base: Transform,

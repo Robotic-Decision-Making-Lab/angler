@@ -92,6 +92,15 @@ joy_teleop:
         data: False
       buttons: [2]
 
+    stop_arm:
+      type: topic
+      interface_type: std_msgs/msg/Float64MultiArray
+      topic_name: /forward_velocity_controller/commands
+      deadman_buttons: [2]
+      message_value:
+        data: 
+          value: [0.0, 0.0, 0.0, 0.0, 0.0]
+
     manual_control:
       type: topic
       interface_type: geometry_msgs/msg/Twist
@@ -112,5 +121,5 @@ joy_teleop:
           offset: 0
         angular-z:
           axis: 2
-          scale: 1.571
+          scale: 0.5
           offset: 0

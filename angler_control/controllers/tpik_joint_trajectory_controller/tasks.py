@@ -388,30 +388,6 @@ class EndEffectorPoseTask(EqualityConstraint):
         if desired_pose is not None:
             self.desired_value = desired_pose
 
-    @property
-    def jacobian(self) -> np.ndarray:
-        """Calculate the UVMS Jacobian.
-
-        Returns:
-            The UVMS Jacobian.
-        """
-        return jacobian.calculate_uvms_jacobian(
-            self.tf_base_to_manipulator_base,
-            self.tf_manipulator_base_to_ee,
-            self.tf_map_to_base,
-            len(self.joint_angles),
-            self.serial_chain,
-            self.joint_angles,
-        )
-
-    @property
-    def error(self) -> np.ndarray:
-        """Calculate the reference signal for the controller.
-
-        Returns:
-            The reference signal to use to drive the system to the desired end-effector
-                pose.
-        """
         pos_error = np.array(
             [
                 self.desired_value.translation.x - self.current_value.translation.x,  # type: ignore # noqa
@@ -423,8 +399,154 @@ class EndEffectorPoseTask(EqualityConstraint):
             self.desired_value.rotation, self.current_value.rotation  # type: ignore
         )[:3].reshape((3, 1))
 
-        return np.vstack((pos_error, ori_error))
+        self._error = np.vstack((pos_error, ori_error))
+        self._jacobian = jacobian.calculate_uvms_jacobian(
+            self.tf_base_to_manipulator_base,
+            self.tf_manipulator_base_to_ee,
+            self.tf_map_to_base,
+            len(self.joint_angles),
+            self.serial_chain,
+            self.joint_angles,
+        )
 
+    @property
+    def jacobian(self) -> np.ndarray:
+        """Calculate the UVMS Jacobian.
+
+        Returns:
+            The UVMS Jacobian.
+        """
+        return self._jacobian
+
+    @property
+    def error(self) -> np.ndarray:
+        """Calculate the reference signal for the controller.
+
+        Returns:
+            The reference signal to use to drive the system to the desired end-effector
+                pose.
+        """
+        return self._error
+
+
+class EndEffectorPosition(EqualityConstraint):
+    """Control the end-effector pose."""
+
+    name = "end_effector_position_eq"
+
+    def __init__(self, gain: float, priority: float) -> None:
+        """Create a new end effector pose task.
+        Args:
+            gain: The task gain.
+            priority: The task priority.
+        """
+        super().__init__(gain, priority)
+
+        self.serial_chain: Any | None = None
+        self.joint_angles = np.zeros((1, 1))
+        self.tf_map_to_base = Transform()
+        self.tf_base_to_manipulator_base = Transform()
+        self.tf_manipulator_base_to_ee = Transform()
+        self.current_value = Transform()
+        self.desired_value = Transform()
+
+    @staticmethod
+    def create_task_from_params(
+        gain: float,
+        priority: float,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,
+    ) -> Any:
+        """Create a new end effector pose task from a set of parameters.
+        Args:
+            gain: The task gain.
+            priority: The task priority.
+            x: The desired end effector x position in the inertial (map) frame. Defaults
+                to None.
+            y: The desired end effector y position in the inertial (map) frame. Defaults
+                to None.
+            z: The desired end effector z position in the inertial (map) frame. Defaults
+                to None.
+        Returns:
+            A new end effector pose task.
+        """
+        task = EndEffectorPosition(gain, priority)
+
+        if None not in [x, y, z]:
+            task.desired_value.translation.x = x
+            task.desired_value.translation.y = y
+            task.desired_value.translation.z = z
+
+        return task
+
+    def update(
+        self,
+        joint_angles: np.ndarray,
+        tf_map_to_ee: Transform,
+        tf_map_to_base: Transform,
+        tf_base_to_manipulator_base: Transform,
+        tf_manipulator_base_to_ee: Transform,
+        serial_chain: Any | None = None,
+        desired_pose: Transform | None = None,
+    ) -> None:
+        """Update the current context of the end effector pose task.
+        Args:
+            joint_angles: The current manipulator joint angles.
+            current_pose: The current vehicle pose in the inertial (map) frame.
+            tf_base_to_manipulator_base: The transformation from the vehile base
+                frame to the manipulator base frame.
+            tf_manipulator_base_to_ee: The transformation from the manipulator base
+                frame to the end effector frame.
+            serial_chain: The manipulator kinpy serial chain. Defaults to None.
+            desired_pose: The desired end effector pose. Defaults to None.
+        """
+        self.joint_angles = joint_angles
+
+        self.current_value = tf_map_to_ee
+
+        self.tf_map_to_base = tf_map_to_base
+        self.tf_base_to_manipulator_base = tf_base_to_manipulator_base
+        self.tf_manipulator_base_to_ee = tf_manipulator_base_to_ee
+
+        if serial_chain is not None:
+            self.serial_chain = serial_chain
+
+        if desired_pose is not None:
+            self.desired_value = desired_pose
+
+        self._jacobian = jacobian.calculate_ee_position_jacobian(
+            self.tf_base_to_manipulator_base,
+            self.tf_manipulator_base_to_ee,
+            self.tf_map_to_base,
+            len(self.joint_angles),
+            self.serial_chain,
+            self.joint_angles,
+        )
+        self._error = np.array(
+            [
+                self.desired_value.translation.x - self.current_value.translation.x,
+                self.desired_value.translation.y - self.current_value.translation.y,
+                self.desired_value.translation.z - self.current_value.translation.z,
+            ]
+        ).reshape((3, 1))
+
+    @property
+    def jacobian(self) -> np.ndarray:
+        """Calculate the UVMS Jacobian.
+        Returns:
+            The UVMS Jacobian.
+        """
+        return self._jacobian
+
+    @property
+    def error(self) -> np.ndarray:
+        """Calculate the reference signal for the controller.
+        Returns:
+            The reference signal to use to drive the system to the desired end effector
+                pose.
+        """
+        return self._error
 
 class ManipulatorJointLimitTask(SetConstraint):
     """Limit a manipulator joint angle to a desired range."""
@@ -645,5 +767,6 @@ task_library = {
         ManipulatorJointConfigurationTask,
         VehicleRollPitchTask,
         VehicleYawTask,
+        EndEffectorPosition,
     ]
 }
