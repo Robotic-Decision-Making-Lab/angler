@@ -1,2 +1,17 @@
 # ignore everything
 *
+
+# Except the following
+!angler_bringup
+!angler_control
+!angler_description
+!angler_planning
+!angler_mux
+!angler_utils
+!angler_kinematics
+!angler_behaviors
+!angler.repos
+!sim.repos
+!.docker/entrypoints
+!requirements-build.txt
+!requirements-dev.txt

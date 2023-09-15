@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+
+  <name>angler_mux</name>
+  <version>0.0.1</version>
+  <description>A set of interfaces designed to mux/demux UVMS states and commands</description>
+
+  <maintainer email="evanp922@gmail.com">Evan Palmer</maintainer>
+  <license>MIT</license>
+
+  <url type="repository">https://github.com/evan-palmer/angler.git</url>
+  <url type="bugtracker">https://github.com/evan-palmer/angler/issues</url>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <depend>moveit_msgs</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

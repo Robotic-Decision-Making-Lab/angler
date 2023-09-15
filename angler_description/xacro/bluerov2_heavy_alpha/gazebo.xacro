@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="bluerov2_heavy_alpha_gazebo"
+    params="
+    prefix
+    description_package
+    namespace
+    controllers_file">
+
+    <!-- Imports -->
+    <xacro:include filename="$(find blue_description)/xacro/bluerov2_heavy_reach/gazebo.xacro" />
+    <xacro:include filename="$(find alpha_description)/xacro/alpha.gazebo.xacro" />
+
+    <!-- Instantiate the BlueROV2 -->
+    <xacro:bluerov2_heavy_reach_gazebo prefix="$(arg prefix)" />
+
+    <!-- Instantiate the Alpha -->
+    <xacro:alpha_gazebo
+      prefix="${prefix}"
+      description_package="${description_package}"
+      namespace="${namespace}"
+      controllers_file="${controllers_file}" />
+
+  </xacro:macro>
+
+</robot>

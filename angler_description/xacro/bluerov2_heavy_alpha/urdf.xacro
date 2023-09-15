@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="bluerov2_heavy_alpha_urdf" params="prefix">
+
+    <link name="${prefix}manipulator_mount_link">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <geometry>
+          <box size="0.001 0.001 0.001" />
+        </geometry>
+      </visual>
+      <inertial>
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
+      </inertial>
+    </link>
+
+    <link name="${prefix}ballast_link">
+      <inertial>
+        <mass value="0.0001" />
+        <inertia
+          ixx="0.0001"
+          ixy="0"
+          ixz="0"
+          iyy="0.0001"
+          iyz="0"
+          izz="0.0001"
+        />
+      </inertial>
+      <!-- Split the collision into four boxes so that
+      we can adjust each one to balance things out -->
+
+      <!-- Front left -->
+      <collision>
+        <geometry>
+          <box size="0.2285 0.2875 0.015" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.11425 0.14375 0.08" />
+      </collision>
+
+      <!-- Front right -->
+      <collision>
+        <geometry>
+          <box size="0.2285 0.2875 0.035" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="0.11425 -0.14375 0.08" />
+      </collision>
+
+      <!-- Back right -->
+      <collision>
+        <geometry>
+          <box size="0.2285 0.2875 0.005" />
+        </geometry>
+        <origin rpy="0 0 0" xyz="-0.11425 -0.14375 0.08" />
+      </collision>
+    </link>
+
+    <joint name="${prefix}manipulator_mount_joint" type="fixed">
+      <origin rpy="0 0 0" xyz="0.24 -0.099 0.029" />
+      <parent link="${prefix}base_link" />
+      <child link="${prefix}manipulator_mount_link" />
+    </joint>
+
+    <joint name="${prefix}ballast_joint" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <parent link="${prefix}base_link" />
+      <child link="${prefix}ballast_link" />
+    </joint>
+
+    <!-- Imports -->
+    <xacro:include filename="$(find alpha_description)/xacro/alpha.urdf.xacro" />
+    <xacro:include filename="$(find blue_description)/xacro/bluerov2_heavy_reach/urdf.xacro" />
+
+    <!-- Instantiate the Alpha -->
+    <xacro:alpha_urdf
+      parent="${prefix}manipulator_mount_link"
+      prefix="${prefix}alpha_"
+      description_package="alpha_description">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </xacro:alpha_urdf>
+
+    <!-- Instantiate the BlueROV2 -->
+    <xacro:bluerov2_heavy_reach_urdf prefix="$(arg prefix)" />
+
+  </xacro:macro>
+
+</robot>

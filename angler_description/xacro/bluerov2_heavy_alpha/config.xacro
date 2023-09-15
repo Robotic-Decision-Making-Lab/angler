@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<robot name="bluerov2_heavy_alpha" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Arguments -->
+  <xacro:arg name="use_fake_hardware" default="true" />
+  <xacro:arg name="serial_port" default="" />
+  <xacro:arg name="state_update_frequency" default="250" />
+  <xacro:arg name="controllers_file" default="controllers.yaml" />
+  <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
+  <xacro:arg name="namespace" default="" />
+  <xacro:arg name="prefix" default="" />
+  <xacro:arg name="use_sim" default="false" />
+  <xacro:arg name="description_package" default="angler_description" />
+
+  <!-- Properties -->
+  <xacro:property name="description_package" value="$(arg description_package)" />
+  <xacro:property name="prefix" value="$(arg prefix)" />
+  <xacro:property name="use_sim" value="$(arg use_sim)" />
+
+  <!-- Imports -->
+  <xacro:include
+    filename="$(find ${description_package})/xacro/bluerov2_heavy_alpha/urdf.xacro" />
+  <xacro:include
+    filename="$(find ${description_package})/xacro/bluerov2_heavy_alpha/ros2_control.xacro" />
+
+  <xacro:bluerov2_heavy_alpha_urdf
+    prefix="${prefix}" />
+  <xacro:bluerov2_heavy_alpha_system
+    prefix="${prefix}alpha_"
+    name="ReachAlpha5"
+    serial_port="$(arg serial_port)"
+    state_update_frequency="$(arg state_update_frequency)"
+    initial_positions_file="/bluerov2_heavy_alpha/$(arg initial_positions_file)"
+    description_package="${description_package}"
+    use_sim="${use_sim}"
+    use_fake_hardware="$(arg use_fake_hardware)" />
+
+  <!-- Gazebo -->
+  <xacro:if value="${use_sim}">
+    <xacro:include
+      filename="$(find ${description_package})/xacro/bluerov2_heavy_alpha/gazebo.xacro" />
+    <xacro:bluerov2_heavy_alpha_gazebo
+      prefix="${prefix}"
+      description_package="${description_package}"
+      namespace="$(arg namespace)"
+      controllers_file="bluerov2_heavy_alpha/$(arg controllers_file)" />
+  </xacro:if>
+
+</robot>

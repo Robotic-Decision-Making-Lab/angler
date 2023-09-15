@@ -1,0 +1,4 @@
+single_manipulator_velocity_demux:
+  ros__parameters:
+    base_cmd_vel_topic: "/blue/ismc/cmd_vel"
+    manipulator_cmd_vel_topic: "/forward_velocity_controller/commands"

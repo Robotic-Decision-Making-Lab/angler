@@ -22,6 +22,8 @@ jobs:
             ROS_DISTRO: rolling
           - IMAGE: humble-ci
             ROS_DISTRO: humble
+          - IMAGE: iron-ci
+            ROS_DISTRO: iron
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -29,7 +31,7 @@ jobs:
           submodules: recursive
 
       - name: Log into registry
-        uses: docker/login-action@v2.0.0
+        uses: docker/login-action@v2.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
