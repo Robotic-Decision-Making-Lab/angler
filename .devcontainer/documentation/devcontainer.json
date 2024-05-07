@@ -1,0 +1,35 @@
+{
+  "name": "Documentation",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "editor.formatOnSave": true,
+        "editor.tabSize": 2,
+        "editor.rulers": [80],
+        "eslint.enable": true,
+        "eslint.validate": [
+          "javascript",
+          "javascriptreact",
+          "typescript",
+          "typescriptreact"
+        ],
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "always"
+        }
+      },
+      "extensions": [
+        "Perkovec.emoji",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "unifiedjs.vscode-mdx"
+      ]
+    }
+  }
+}
