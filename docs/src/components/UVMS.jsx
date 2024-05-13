@@ -14,4 +14,4 @@ function UVMS({ name, img, children }) {
   );
 }
 
-export default Platform;
+export default UVMS;
