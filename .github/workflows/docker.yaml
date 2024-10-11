@@ -15,8 +15,10 @@ on:
       - requirements-build.txt
   workflow_dispatch:
 
+# env:
+#   PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robotic-Decision-Making-Lab/angler') }}
 env:
-  PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robotic-Decision-Making-Lab/angler') }}
+  PUSH: "true"
 
 jobs:
   docker_build:
