@@ -70,7 +70,7 @@ ENV USER=$USERNAME
 # These two ENVs effectively "activate" the venv for subsequent calls to
 # python/pip in the Dockerfile
 WORKDIR /home/$USERNAME
-ENV VIRTUAL_ENV=/home/$USERNAME/.venv/blue
+ENV VIRTUAL_ENV=/home/$USERNAME/.venv/angler
 RUN python3 -m venv --system-site-packages --symlinks $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
@@ -82,10 +82,10 @@ RUN wget https://raw.githubusercontent.com/mavlink/mavros/ros2/mavros/scripts/in
 
 ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
 WORKDIR $USER_WORKSPACE
-COPY --chown=$USER_UID:$USER_GID . src/blue
+COPY --chown=$USER_UID:$USER_GID . src/angler
 
 # Install the Python requirements that aren't available as rosdeps
-RUN python3 -m pip install -r $(pwd)/src/blue/requirements-build.txt
+RUN python3 -m pip install -r $(pwd)/src/angler/requirements-build.txt
 
 # Install gstreamer
 RUN sudo apt-get -q update \
@@ -109,7 +109,7 @@ RUN sudo apt-get -q update \
 WORKDIR $USER_WORKSPACE
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
-    && vcs import src < src/blue/blue.repos \
+    && vcs import src < src/angler/angler.repos \
     && rosdep update \
     && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
     && sudo apt-get autoremove -y \
@@ -196,7 +196,7 @@ RUN [ "/bin/bash" , "-c" , " \
 WORKDIR $USER_WORKSPACE
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
-    && vcs import src < src/blue/sim.repos \
+    && vcs import src < src/angler/sim.repos \
     && rosdep update \
     && rosdep install -y --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
     && sudo apt-get autoremove -y \

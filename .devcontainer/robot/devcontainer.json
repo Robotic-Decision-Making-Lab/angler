@@ -4,12 +4,12 @@
     "dockerfile": "Dockerfile",
     "context": "../..",
     "args": {
-      "BLUE_GITHUB_REPO": "ghcr.io/robotic-decision-making-lab/blue",
+      "ANGLER_GITHUB_REPO": "ghcr.io/robotic-decision-making-lab/angler",
       "ROS_DISTRO": "rolling"
     }
   },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/home/ubuntu/ws_blue/src/blue,type=bind",
-  "workspaceFolder": "/home/ubuntu/ws_blue/src/blue",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/ubuntu/ws_angler/src/angler,type=bind",
+  "workspaceFolder": "/home/ubuntu/ws_angler/src/angler",
   "remoteUser": "ubuntu",
   "runArgs": [
     "--network=host",
@@ -24,7 +24,7 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "/home/ubuntu/.venv/blue/bin/python",
+        "python.defaultInterpreterPath": "/home/ubuntu/.venv/angler/bin/python",
         "python.autoComplete.extraPaths": ["${workspaceFolder}/install/"],
         "python.analysis.extraPaths": ["${workspaceFolder}/install/"]
       },

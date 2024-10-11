@@ -1,18 +1,18 @@
 #
 # Dockerfile for *-robot development container
 #
-ARG BLUE_GITHUB_REPO=Robotic-Decision-Making-Lab/blue
+ARG ANGLER_GITHUB_REPO=Robotic-Decision-Making-Lab/angler
 ARG ROS_DISTRO=rolling
-FROM ${BLUE_GITHUB_REPO}:${ROS_DISTRO}-robot
+FROM ${ANGLER_GITHUB_REPO}:${ROS_DISTRO}-robot
 
 # Install ROS dependencies
 # This is done in a previous stage, but we include it again here in case anyone wants to
 # add new dependencies during development
 ENV USERNAME=ubuntu
-ENV USER_WORKSPACE=/home/$USERNAME/ws_blue
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
 WORKDIR $USER_WORKSPACE
 
-COPY --chown=$USER_UID:$USER_GID . src/blue
+COPY --chown=$USER_UID:$USER_GID . src/angler
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
     && rosdep update \

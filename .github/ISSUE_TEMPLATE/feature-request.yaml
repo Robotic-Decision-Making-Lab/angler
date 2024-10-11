@@ -16,9 +16,9 @@ body:
       label: Feature Type
       description: Please indicate what type of feature request you would like to propose.
       options:
-        - Adding new functionality to the BlueROV2 driver
-        - Changing existing functionality in the BlueROV2 driver
-        - Removing existing functionality in the BlueROV2 driver
+        - Adding new functionality
+        - Changing existing functionality
+        - Removing existing functionality
     validations:
       required: true
 

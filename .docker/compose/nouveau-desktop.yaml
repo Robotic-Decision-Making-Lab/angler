@@ -1,5 +1,5 @@
 services:
-  blue:
+  angler:
     image: ghcr.io/robotic-decision-making-lab/angler:rolling-desktop
     environment:
       - DISPLAY=${DISPLAY}
