@@ -84,9 +84,6 @@ ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
 WORKDIR $USER_WORKSPACE
 COPY --chown=$USER_UID:$USER_GID . src/angler
 
-# Install the Python requirements that aren't available as rosdeps
-RUN python3 -m pip install -r $(pwd)/src/angler/requirements-build.txt
-
 # Install gstreamer
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
