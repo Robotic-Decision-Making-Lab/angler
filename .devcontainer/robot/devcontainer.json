@@ -1,7 +1,13 @@
 {
-  "name": "NVIDIA Dev Container",
-  "dockerFile": "Dockerfile",
-  "context": "../..",
+  "name": "Robot Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "../..",
+    "args": {
+      "BLUE_GITHUB_REPO": "ghcr.io/robotic-decision-making-lab/blue",
+      "ROS_DISTRO": "rolling"
+    }
+  },
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/ubuntu/ws_blue/src/blue,type=bind",
   "workspaceFolder": "/home/ubuntu/ws_blue/src/blue",
   "remoteUser": "ubuntu",
@@ -12,18 +18,9 @@
     "--security-opt=apparmor:unconfined",
     "--volume=/dev:/dev",
     "--privileged",
-    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-    "--volume=/mnt/wslg:/mnt/wslg",
-    "--gpus=all"
+    "--volume=/run/user/1000:/run/user/1000"
   ],
-  "containerEnv": {
-    "DISPLAY": "${localEnv:DISPLAY}",
-    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
-    "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
-    "PULSE_SERVER": "${localEnv:PULSE_SERVER}",
-    "LIBGL_ALWAYS_SOFTWARE": "1",
-    "QT_X11_NO_MITSHM": "1"
-  },
+  "containerEnv": {},
   "customizations": {
     "vscode": {
       "settings": {

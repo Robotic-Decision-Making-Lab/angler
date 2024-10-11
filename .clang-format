@@ -1,7 +1,7 @@
 ---
 Language: Cpp
 BasedOnStyle: Google
-ColumnLimit: 100
+ColumnLimit: 120
 MaxEmptyLinesToKeep: 1
 
 IndentWidth: 2
@@ -12,8 +12,11 @@ AlignAfterOpenBracket: AlwaysBreak
 ConstructorInitializerIndentWidth: 0
 ContinuationIndentWidth: 2
 DerivePointerAlignment: false
+AllowAllParametersOfDeclarationOnNextLine: false
 PointerAlignment: Middle
 PackConstructorInitializers: Never
+BinPackArguments: false
+BinPackParameters: false
 
 # Configure brace wrapping cases
 BreakBeforeBraces: Custom

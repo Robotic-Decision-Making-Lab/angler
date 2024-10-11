@@ -1,46 +1,21 @@
-# Prerequisites
-*.d
+# ROS
+build/
+install/
+log/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
+# python
 .mypy_cache/
-build
-install
-log
-.vscode
 __pycache__
 
-# ArduSub SITL
+# workspace.repos
+ros_gz/
+
+# ArduSub Sim
 eeprom.bin
 mav.parm
 mav.tlog
 mav.tlog.raw
 logs/
+
+# Allow overrides in docker-bake
+.docker/docker-bake.override.hcl

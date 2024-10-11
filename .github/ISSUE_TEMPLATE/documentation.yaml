@@ -1,5 +1,5 @@
 name: Documentation Improvement
-description: Report an issue related to the Angler documentation.
+description: Report an issue related to the Blue documentation.
 title: "[DOC]: <Please write a descriptive title after the '[DOC]: ' prefix>"
 labels: [documentation, needs triage]
 
@@ -16,9 +16,9 @@ body:
       label: Documentation Change Type
       description: Please indicate what type of documentation issue you are reporting.
       options:
-        - Adding new documentation to the Angler documentation
-        - Changing existing Angler documentation
-        - Removing existing Angler documentation
+        - Adding new documentation to the Blue documentation
+        - Changing existing documentation
+        - Removing existing documentation
     validations:
       required: true
 
