@@ -1,6 +1,6 @@
 services:
   blue:
-    image: ghcr.io/robotic-decision-making-lab/blue:rolling-robot
+    image: ghcr.io/robotic-decision-making-lab/angler:rolling-robot
     build:
       dockerfile: .docker/Dockerfile
       target: robot
@@ -17,5 +17,5 @@ services:
       - /run/user/1000:/run/user/1000
       - type: bind
         source: ../../
-        target: /home/blue/ws_blue/src/blue
+        target: /home/angler/ws_angler/src/angler
     command: tail -f /dev/null

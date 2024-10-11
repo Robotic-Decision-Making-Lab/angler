@@ -3,8 +3,8 @@ FROM ros:$ROS_DISTRO-ros-base AS ci
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /root/ws_blue
-COPY . src/blue
+WORKDIR /root/ws_angler
+COPY . src/angler
 
 # Install apt packages needed for CI
 RUN apt-get -q update \
@@ -13,21 +13,19 @@ RUN apt-get -q update \
     git \
     sudo \
     clang \
-    clang-format-14 \
-    clang-tidy \
-    clang-tools \
     python3-pip \
     python3-dev \
     python3-venv \
     lsb-release \
     wget \
     gnupg \
+    apt-utils \
     software-properties-common \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Install all ROS dependencies for _just_ blue
+# Install all ROS dependencies for _just_ angler
 # (we have not imported other repos from .repos files)
 RUN apt-get -q update \
     && apt-get -q -y upgrade \
@@ -40,9 +38,9 @@ RUN apt-get -q update \
 
 # This stage includes
 #   - Switching to the non-root user
-#   - Copying 'blue' source from this repo into the non-root user's workspace
-#   - Installing blue deps using pip, apt and rosdep
-#   - Installs the remaining blue dependencies from blue_robot.repos
+#   - Copying 'angler' source from this repo into the non-root user's workspace
+#   - Installing angler deps using pip, apt and rosdep
+#   - Installs the remaining angler dependencies from angler.repos
 #   - Installs deps from rosdep for all src dependencies
 #   - colcon build
 #
@@ -82,7 +80,7 @@ RUN wget https://raw.githubusercontent.com/mavlink/mavros/ros2/mavros/scripts/in
     && chmod +x install_geographiclib_datasets.sh \
     && sudo ./install_geographiclib_datasets.sh
 
-ENV USER_WORKSPACE=/home/$USERNAME/ws_blue
+ENV USER_WORKSPACE=/home/$USERNAME/ws_angler
 WORKDIR $USER_WORKSPACE
 COPY --chown=$USER_UID:$USER_GID . src/blue
 
@@ -107,25 +105,6 @@ RUN sudo apt-get -q update \
     && sudo apt-get autoremove -y \
     && sudo apt-get clean -y \
     && sudo rm -rf /var/lib/apt/lists/*
-
-# Manually install MAVROS from source in the ws_blue/ workspace
-# WORKDIR $USER_WORKSPACE/src/
-# ARG MAVROS_RELEASE=ros2
-# ARG MAVLINK_RELEASE=release/rolling/mavlink
-# RUN git clone --depth 1 -b ${MAVROS_RELEASE} https://github.com/mavlink/mavros.git
-# RUN git clone --depth 1 --recursive -b ${MAVLINK_RELEASE} https://github.com/mavlink/mavlink-gbp-release.git mavlink
-# # - mavgen uses future.standard_library for backwards compatibility with Python2;
-# #   However, this caused issues with Python 3.12 installed in "noble".
-# #   Comment those lines out in mavlink.
-# #
-# # - Fix linkage for yaml-cpp in mavros_extra_plugins
-# RUN sed -i -e 's/^from future import standard_library/#from future import standard_library/' \
-#     -e 's/standard_library.install_aliases()/#standard_library.install_aliases()/' \
-#     mavlink/pymavlink/generator/mavgen.py && \
-#     sed -i -e 's/^# find_package(yaml_cpp REQUIRED)/find_package(yaml-cpp REQUIRED)/' \
-#     -e '/^ament_target_dependencies(mavros_extras_plugins$/i target_link_libraries(mavros_extras_plugins yaml-cpp::yaml-cpp)' \
-#     -e '/^ament_target_dependencies(mavros_extras$/i target_link_libraries(mavros_extras yaml-cpp::yaml-cpp)' \
-#     mavros/mavros_extras/CMakeLists.txt
 
 WORKDIR $USER_WORKSPACE
 RUN sudo apt-get -q update \

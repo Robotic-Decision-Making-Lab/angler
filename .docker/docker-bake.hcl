@@ -2,15 +2,15 @@
 # Override these variables with environment variables
 # e.g.
 #
-#   BLUE_ROS_DISTRO=iron docker buildx bake
+#   ANGLER_ROS_DISTRO=iron docker buildx bake
 #
 # or
 #
-#   export BLUE_ROS_DISTRO=iron
+#   export ANGLER_ROS_DISTRO=iron
 #   docker buildx bake
 #
-variable "BLUE_ROS_DISTRO" { default = "rolling" }
-variable "BLUE_GITHUB_REPO" { default = "robotic-decision-making-lab/blue" }
+variable "ANGLER_ROS_DISTRO" { default = "rolling" }
+variable "ANGLER_GITHUB_REPO" { default = "robotic-decision-making-lab/angler" }
 
 group "default" {
   targets = ["ci", "robot", "desktop", "desktop-nvidia"]
@@ -37,19 +37,19 @@ target "ci" {
   target = "ci"
   context = ".."
   args = {
-    ROS_DISTRO = "${BLUE_ROS_DISTRO}"
+    ROS_DISTRO = "${ANGLER_ROS_DISTRO}"
   }
   tags = [
-    "ghcr.io/${BLUE_GITHUB_REPO}:${BLUE_ROS_DISTRO}-ci"
+    "ghcr.io/${ANGLER_GITHUB_REPO}:${ANGLER_ROS_DISTRO}-ci"
   ]
   labels = {
-    "org.opencontainers.image.source" = "https://github.com/${BLUE_GITHUB_REPO}"
+    "org.opencontainers.image.source" = "https://github.com/${ANGLER_GITHUB_REPO}"
   }
   cache_from =[
-    "ghcr.io/${BLUE_GITHUB_REPO}:cache-${BLUE_ROS_DISTRO}-ci",
-    "ghcr.io/${BLUE_GITHUB_REPO}:cache-${BLUE_ROS_DISTRO}-robot",
-    "ghcr.io/${BLUE_GITHUB_REPO}:cache-${BLUE_ROS_DISTRO}-desktop",
-    "ghcr.io/${BLUE_GITHUB_REPO}:cache-${BLUE_ROS_DISTRO}-desktop-nvidia",
+    "ghcr.io/${ANGLER_GITHUB_REPO}:cache-${ANGLER_ROS_DISTRO}-ci",
+    "ghcr.io/${ANGLER_GITHUB_REPO}:cache-${ANGLER_ROS_DISTRO}-robot",
+    "ghcr.io/${ANGLER_GITHUB_REPO}:cache-${ANGLER_ROS_DISTRO}-desktop",
+    "ghcr.io/${ANGLER_GITHUB_REPO}:cache-${ANGLER_ROS_DISTRO}-desktop-nvidia",
     "type=local,dest=.docker-cache"
   ]
   cache_to = [
@@ -62,7 +62,7 @@ target "robot" {
   inherits = [ "ci", "docker-metadata-action-robot" ]
   target = "robot"
   tags = [
-    "ghcr.io/${BLUE_GITHUB_REPO}:${BLUE_ROS_DISTRO}-robot"
+    "ghcr.io/${ANGLER_GITHUB_REPO}:${ANGLER_ROS_DISTRO}-robot"
   ]
   cache_to = [
     "type=local,dest=.docker-cache"
@@ -73,7 +73,7 @@ target "desktop" {
   inherits = [ "ci", "docker-metadata-action-desktop" ]
   target = "desktop"
   tags = [
-    "ghcr.io/${BLUE_GITHUB_REPO}:${BLUE_ROS_DISTRO}-desktop"
+    "ghcr.io/${ANGLER_GITHUB_REPO}:${ANGLER_ROS_DISTRO}-desktop"
   ]
   cache_to = [
     "type=local,dest=.docker-cache"
@@ -86,7 +86,7 @@ target "desktop-nvidia" {
   inherits = [ "desktop", "docker-metadata-action-desktop-nvidia" ]
   target = "desktop-nvidia"
   tags = [
-    "ghcr.io/${BLUE_GITHUB_REPO}:${BLUE_ROS_DISTRO}-desktop-nvidia"
+    "ghcr.io/${ANGLER_GITHUB_REPO}:${ANGLER_ROS_DISTRO}-desktop-nvidia"
   ]
   cache_to = [
     "type=local,dest=.docker-cache"
