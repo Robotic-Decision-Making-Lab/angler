@@ -1,23 +1,19 @@
 name: Docker
 
-# on:
-#   schedule:
-#     - cron: "0 17 * * 6"
-#   push:
-#     branches:
-#       - main
-#       - dev-update-docker
-#   pull_request:
-#     paths:
-#       - .docker/**
-#       - .github/workflows/docker.yaml
-#       - angler.repos
-#       - requirements-build.txt
-#   workflow_dispatch:
 on:
+  schedule:
+    - cron: "0 17 * * 6"
   push:
     branches:
+      - main
       - dev-update-docker
+  pull_request:
+    paths:
+      - .docker/**
+      - .github/workflows/docker.yaml
+      - angler.repos
+      - requirements-build.txt
+  workflow_dispatch:
 
 # env:
 #   PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robotic-Decision-Making-Lab/angler') }}
