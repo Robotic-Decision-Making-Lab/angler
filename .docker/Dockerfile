@@ -117,11 +117,12 @@ RUN sudo apt-get -q update \
     && sudo rm -rf /var/lib/apt/lists/*
 
 # Actually build workspace
-RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
-    && colcon build
+# TODO(evan-palmer): Add this back in once the build is working
+# RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
+#     && colcon build
 
-RUN echo "source ${USER_WORKSPACE}/install/setup.bash" >> /home/$USERNAME/.bashrc \
-    && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/$USERNAME/.bashrc \
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/$USERNAME/.bashrc \
+    # && echo "source ${USER_WORKSPACE}/install/setup.bash" >> /home/$USERNAME/.bashrc \
     && echo "source $VIRTUAL_ENV/bin/activate" >> /home/$USERNAME/.bashrc \
     && echo "\n# Ensure colcon is run in the venv\nalias colcon='python3 -m colcon'" >> /home/$USERNAME/.bashrc
 
@@ -205,8 +206,8 @@ RUN sudo apt-get -q update \
 # For users that build this on a laptop or system with limited RAM,
 # Modify the 'colcon build' line to be 'MAKEFLAGS="-j1 -l1" colcon build'
 # This will limit the amount of RAM that colcon is allowed to use
-RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
-    && colcon build
+# RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
+#     && colcon build
 
 # Setup the simulation environment variables
 RUN  <<EOT cat >> /home/$USERNAME/.bashrc

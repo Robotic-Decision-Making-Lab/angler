@@ -6,16 +6,17 @@ on:
   push:
     branches:
       - main
+      - dev-update-docker
   pull_request:
     paths:
       - .docker/**
       - .github/workflows/docker.yaml
-      - blue.repos
+      - angler.repos
       - requirements-build.txt
   workflow_dispatch:
 
 env:
-  PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robotic-Decision-Making-Lab/blue') }}
+  PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robotic-Decision-Making-Lab/angler') }}
 
 jobs:
   docker_build:
@@ -101,8 +102,8 @@ jobs:
         name: Build and push (non PR)
         uses: docker/bake-action@v5.10.0
         env:
-          BLUE_ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
-          BLUE_GITHUB_REPO: ${{ steps.lowercase-repo.outputs.repository }}
+          ANGLER_ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
+          ANGLER_GITHUB_REPO: ${{ steps.lowercase-repo.outputs.repository }}
         with:
           workdir: .docker
           files: |
@@ -121,8 +122,8 @@ jobs:
         name: Build and push (PR)
         uses: docker/bake-action@v5.10.0
         env:
-          BLUE_ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
-          BLUE_GITHUB_REPO: ${{ steps.lowercase-repo.outputs.repository }}
+          ANGLER_ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
+          ANGLER_GITHUB_REPO: ${{ steps.lowercase-repo.outputs.repository }}
         with:
           workdir: .docker
           files: |
