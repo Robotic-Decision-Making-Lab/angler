@@ -3,6 +3,38 @@
 Angler is a general ROS 2 framework designed to support research, development,
 and deployment of underwater vehicle manipulator systems (UVMS).
 
+## ⚠️ Notice ⚠️
+
+We have made a number of major improvements and modifications to this project
+since its initial release. **All features that have been implemented in this
+project still exists and have been greatly improved.** Angler as a framework
+is now split into the following distinct repositories:
+
+* [blue](https://github.com/Robotic-Decision-Making-Lab/blue): Tutorials and
+  complete integration examples have been moved to this project to consolidate
+  our documentation.
+* [auv_controllers](https://github.com/Robotic-Decision-Making-Lab/auv_controllers): All
+  controllers in this project have been refactored using ros2_control to improve
+  generalization and to simplify integration of custom algorithms. The whole-body
+  controllers, including the TPIK controller, have been moved here. The dependency
+  on ArduSub has also been abstracted away so that these algorithms can be applied
+  to a wider variety of systems.
+* [hydrodynamics](https://github.com/Robotic-Decision-Making-Lab/hydrodynamics): This
+  repository implements an API for parsing hydrodynamic parameters from a URDF and
+  for using the parsed parameters for forward/inverse dynamics.
+* [ardusub_driver](https://github.com/Robotic-Decision-Making-Lab/ardusub_driver): This
+  repository hosts the ArduSub integration implementation, including a hardware
+  interface for direct thruster control that integrates with `auv_controllers`.
+* [reach](https://github.com/Robotic-Decision-Making-Lab/reach): The Reach Alpha 5
+  implementation has been generalized to better support integration with additional
+  Reach manipulator projects, such as the Reach Bravo 7. The project has also been
+  improved to enable integration with rigid body dynamics libraries for use in MPC
+  implementations.
+* Sensor drivers that were previously implemented in this project and their integration
+  with state estimators are now described in the blue documentation linked above. For
+  example, we have integrated support for the Water Linked DVL-A50 and Water Linked
+  Underwater GPS.
+
 ## Main Features
 
 The main features of the project include:
